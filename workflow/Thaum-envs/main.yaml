@@ -1,0 +1,10 @@
+# few programs, so doing all in same conda environment rather than separate ones per rule
+name: TARA-mapping
+channels:
+    - conda-forge
+    - bioconda
+    - defaults
+dependencies:
+    - bowtie2=2.4.2
+    - sra-tools=2.10.8
+    - snakemake=5.26.1
