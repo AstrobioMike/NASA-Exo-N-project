@@ -1,124 +1,74 @@
 ############################################################################################
-## Snakefile for GeneLab Illumina metagenomics processing workflow                        ##
-## Two samples taken from: https://genelab-data.ndc.nasa.gov/genelab/accession/GLDS-286/  ##
-##                                                                                        ##
-## This file as written expects to be executed within the "processing_info/" directory    ##
-## with the raw starting fastq files present in the "../Raw_Data/" directory              ##
+## Snakefile for Nitrogen Exobio metagenomics                                             ##
 ## Developed by Michael D. Lee (Mike.Lee@nasa.gov)                                        ##
 ############################################################################################
 
 import os
+import pandas as pd
 
 ########################################
 ############# General Info #############
 ########################################
 
 """
-Expected to be run in the conda environment described in the environment.yml file, or installed as below, or with the specified programs and versions accessible:
-This display with all together is for convenience if wanted. If not, or if the environment won't build with all of them together like this, it can also be run with each rule having its own conda environments as shown next:
-
-# conda create -y -n GL-Illumina-metagenomics -c conda-forge -c bioconda -c defaults -c biobakery -c astrobiomike \
-#              fastqc=0.11.9 multiqc=1.8 bbmap=38.86 megahit=1.2.9 bit=1.8.11 bowtie2=2.3.5.1 \
-#              samtools=1.9 prodigal=2.6.3 kofamscan=1.3.0 blast=2.9.0 cat=5.1.2 metaphlan=3.0.4 \
-#              humann=3.0.0.alpha.3 snakemake=5.19.3
-
-# conda activate GL-Illumina-metagenomics
-
-OR, things can be run with `--use-conda` added to the snakemake call, based on the yaml files in the "envs/" subdirectory, though that still requires setting up the databases for each environment as discussed next,
-and each variable for a specific program would need to be added to that specific conda environment (if running all in the same conda environment, all would be initially set in that same conda environment)
-If doing that, still need to install snakemake in the base conda environment first: 
-# conda install -c conda-forge -c bioconda -c defaults snakemake=5.19.3
-
-  ## Additional notes on conda individual rule conda environments ##
-    # By default snakemake will make the new conda environments every time it runs in a new location, but you can tell it to use the same ones by providing `--conda-prefix <path/to/conda/envs>` in addition to `--use-conda`
-    # If this is the first time setting up, it can be run with the `--conda-create-envs-only` flag to generate the conda environments, then again with `--list-conda-envs` and the `-n` flag (dry run), this will
-      # show where the conda environments are/what their names are, so we can activate them individually in order to set up the following required databases (only needed on initial setup)
-    # example run using individual conda envs: snakemake -j 4 --use-conda --conda-prefix <path/to/conda/envs> -p
-
-### Reference databases that require one-time setup ###
-
-The KOFamScan reference files can be downloaded as follows:
-# curl -LO ftp://ftp.genome.jp/pub/db/kofam/profiles.tar.gz
-# curl -LO ftp://ftp.genome.jp/pub/db/kofam/ko_list.gz
-# tar -xzvf profiles.tar.gz
-# gunzip ko_list.gz
-
-As written, the directory holding them should be in this "KO_DIR" shell env. variable:
-This variable can be permanently added to the conda environment like so (modified to be the path to the actual directory):
-# mkdir -p ${CONDA_PREFIX}/etc/conda/activate.d/
-# echo 'export KO_DIR=/path/to/kofamscan_db' >> ${CONDA_PREFIX}/etc/conda/activate.d/set_env_vars.sh
-    # then deactivate and reactivate conda environment for it to take effect
-
-The CAT reference files can be downloaded as follows:
-# wget tbb.bio.uu.nl/bastiaan/CAT_prepare/CAT_prepare_20200618.tar.gz
-# tar -xvzf CAT_prepare_20200618.tar.gz
-
-As written, the directory holding them should be in the "CAT_DIR" shell env. variable
-This variable can be permanentily added to the conda environment like noted above for the KO_DIR variable:
-# mkdir -p ${CONDA_PREFIX}/etc/conda/activate.d/
-# echo 'export CAT_DIR=/path/to/CAT_prepare_20200618' >> ${CONDA_PREFIX}/etc/conda/activate.d/set_env_vars.sh
-    # then deactivate and reactivate conda environment for it to take effect
-
-# humann3 and metaphlan3 databases downloaded with the following:
-# humann3_databases --download chocophlan full <location>
-# humann3_databases --download uniref uniref90_ec_filtered_diamond <location>
-# humann3_databases --download utility_mapping full <location>
-# metaphlan --install --bowtie2db <location>
-
-The humann3 db locations are automatically tracked by the program, if not putting metaphlan in the default location, 
-it can be added to the conda environment same as above:
-# mkdir -p ${CONDA_PREFIX}/etc/conda/activate.d/
-# echo 'export MPA_DIR=/path/to/metaphlan3-db' >> ${CONDA_PREFIX}/etc/conda/activate.d/set_env_vars.sh
-    # then deactivate and reactivate conda environment for it to take effect
+See the corresponding 'workflow-notes.txt'.
 """
-
 
 ########################################
 ######## Setting some variables ########
 ########################################
 
-  # current GLDS number
-curr_GLDS = "GLDS-286"
-
   # single column file holding unique portion of sample names
 sample_IDs_file = "unique-sample-IDs.txt"
 
-  # useful prefixes and suffixes for filename structure
-  # filename prefix (what comes before the unique portion of the name that is provided in the "unique-sample-IDs.txt" file)
-filename_prefix = "GLDS-286_metagenomics_"
-  # filename suffix (what comes after the unique portion of the name, one for R1 and one for R2)
-filename_R1_suffix = "_L003_R1_001_HRremoved.fastq.gz"
-filename_R2_suffix = "_L003_R2_001_HRremoved.fastq.gz"
-trimmed_filename_R1_suffix = "_L003_R1_001_HRremoved-trimmed.fastq.gz"
-trimmed_filename_R2_suffix = "_L003_R2_001_HRremoved-trimmed.fastq.gz"
-raw_fastqc_R1_suffix = "_L003_R1_001_HRremoved_fastqc.zip"
-raw_fastqc_R2_suffix = "_L003_R2_001_HRremoved_fastqc.zip"
-trimmed_fastqc_R1_suffix = "_L003_R1_001_HRremoved-trimmed_fastqc.zip"
-trimmed_fastqc_R2_suffix = "_L003_R2_001_HRremoved-trimmed_fastqc.zip"
+  # single column file holding all groups of samples
+group_IDs_file = "groups.txt"
+
+  # groups files associating which samples should be co-assembled
+groups_map_file = "sample-groups-map.tsv"
+
+
+  # any helpful prefixes or suffixes
+trimmed_R1_suffix = "-R1-trimmed.fq.gz"
+trimmed_R2_suffix = "-R2-trimmed.fq.gz"
+
+raw_R1_suffix = "-R1.fq.gz"
+raw_R2_suffix = "-R2.fq.gz"
+
+
+raw_fastqc_R1_suffix = "-R1_fastqc.zip"
+raw_fastqc_R2_suffix = "-R2_fastqc.zip"
+
+trimmed_fastqc_R1_suffix = "-R1-trimmed_fastqc.zip"
+trimmed_fastqc_R2_suffix = "-R2-trimmed_fastqc.zip"
 
   # directories (all relative to processing directory)
-raw_reads_dir = "../Raw_Data/"
-fastqc_out_dir = "../FastQC_Outputs/"
-filtered_reads_dir = "../Filtered_Sequence_Data/"
-assembly_based_dir = "../Assembly-based_Processing/"
-assemblies_dir = assembly_based_dir + "Assemblies/"
-genes_dir = assembly_based_dir + "Predicted_Genes/"
-annotations_and_tax_dir = assembly_based_dir + "Annotations_and_Taxonomy/"
-mapping_dir = assembly_based_dir + "Mapping_Files/"
-combined_output_dir = assembly_based_dir + "Combined_Outputs/"
-read_based_dir = "../Read-based_Processing/"
+raw_reads_dir = "../raw-reads/"
+fastqc_out_dir = "../fastqc-outputs/"
+filtered_reads_dir = "../filtered-reads/"
+assemblies_dir = "../assemblies/"
+genes_dir = "../predicted-genes/"
+annotations_and_tax_dir = "../annotations-and-taxonomy/"
+mapping_dir = "../read-mapping/"
+combined_output_dir = "../combined-outputs/"
+bins_dir = "../bins/"
+MAGs_dir = "../MAGs/"
 
-dirs_to_create = [fastqc_out_dir, filtered_reads_dir, assembly_based_dir, assemblies_dir,
-                  genes_dir, annotations_and_tax_dir, mapping_dir, combined_output_dir,
-                  read_based_dir]
+
+dirs_to_create = [fastqc_out_dir, filtered_reads_dir, assemblies_dir, genes_dir, 
+                 annotations_and_tax_dir, mapping_dir, combined_output_dir, bins_dir, MAGs_dir]
+
 
   # number of threads to use PER snakemake job started (which is determined by the -j parameter passed to the snakemake call)
-    # passed to fastqc, bowtie2, samtools, humann3
-num_threads = 7
+    # passed to fastqc, megahit, bowtie2, samtools, metabat2, checkm-pplacer
+num_threads = 10
 
   # number of cpus to use PER snakemake job started
-    # passed to KOFamScan and CAT
-num_cpus = 8
+    # passed to KOFamScan, CAT, checkm
+num_cpus = 10
+
+  # number of cpus to use for gtdb-tk
+gtdb_tk_num_cpus = 2
 
   # max memory allowed passed to megahit assembler
     # either by proportion of available on system, e.g. 0.5
@@ -127,11 +77,52 @@ max_mem = 0.5
 
 
 ########################################
-#### Reading samples file into list ####
+### Reading info files into objects  ###
 ########################################
 
 sample_ID_list = [line.strip() for line in open(sample_IDs_file)]
 
+group_ID_list = [line.strip() for line in open(group_IDs_file)]
+
+group_map_tab = pd.read_csv(groups_map_file, sep="\t", names = ["sample", "group"])
+
+
+#######################################
+## Setting up groups for co-assembly ##
+#######################################
+
+def group_R1_reads(target_group, group_map_tab = group_map_tab):
+    target_samples_list = list(group_map_tab[group_map_tab.group.eq(target_group)]['sample'].values)
+    return(expand(filtered_reads_dir + "{ID}" + trimmed_R1_suffix, ID = target_samples_list))
+
+def group_R2_reads(target_group, group_map_tab = group_map_tab):
+    target_samples_list = list(group_map_tab[group_map_tab.group.eq(target_group)]['sample'].values)
+    return(expand(filtered_reads_dir + "{ID}" + trimmed_R2_suffix, ID = target_samples_list))
+
+R1_group_dict, R2_group_dict = {}, {}
+for group in group_ID_list:
+    R1_group_dict[group] = group_R1_reads(group)
+    R2_group_dict[group] = group_R2_reads(group)
+
+
+group_sample_bams_list, group_bam_dict = [], {}
+def group_sample_bams(target_group, group_map_tab = group_map_tab):
+    target_samples_list = list(group_map_tab[group_map_tab.group.eq(target_group)]['sample'].values)
+    return(expand(mapping_dir + "{ID}-" + group + ".bam", ID = target_samples_list))
+
+for group in group_ID_list:
+    group_sample_bams_list += group_sample_bams(group)
+    group_bam_dict[group] = group_sample_bams(group)
+
+
+group_sample_coverage_files_list, group_cov_dict = [], {}
+def group_sample_coverages_files(target_group, group_map_tab = group_map_tab):
+    target_samples_list = list(group_map_tab[group_map_tab.group.eq(target_group)]['sample'].values)
+    return(expand(mapping_dir + "{ID}-" + group + "-gene-coverages.tsv", ID = target_samples_list))
+
+for group in group_ID_list:
+    group_sample_coverage_files_list += group_sample_coverages_files(group)
+    group_cov_dict[group] = group_sample_coverages_files(group)
 
 ########################################
 ######## Setting up directories ########
@@ -143,6 +134,11 @@ for dir in dirs_to_create:
 	except:
 		pass
 
+for dir in expand(bins_dir + "{group}", group = group_ID_list):
+    try:
+        os.mkdir(dir)
+    except:
+        pass
 
 ########################################
 ############# Rules start ##############
@@ -150,18 +146,29 @@ for dir in dirs_to_create:
 
 rule all:
     input:
-        combined_output_dir + curr_GLDS + "-KO-function-coverages.tsv",
-        combined_output_dir + curr_GLDS + "-taxonomy-coverages.tsv",
-        expand(annotations_and_tax_dir + "{ID}-contig-coverage-and-tax.tsv", ID = sample_ID_list),
-        expand(annotations_and_tax_dir + "{ID}-gene-coverage-annotation-and-tax.tsv", ID = sample_ID_list),
+        combined_output_dir + "All-combined-KO-function-coverages.tsv",
+        combined_output_dir + "All-combined-KO-function-CPM-normalized-coverages.tsv",
+        combined_output_dir + "All-combined-taxonomy-coverages.tsv",
+        combined_output_dir + "All-combined-taxonomy-CPM-normalized-coverages.tsv",
+        MAGs_dir + "gtdbtk-out",
+        MAGs_dir + "MAGs-overview.tsv",
+        expand(MAGs_dir + "{group}-MAGs-checkm-out.tsv", group = group_ID_list),
+        expand(bins_dir + "{group}-bins-checkm-out.tsv", group = group_ID_list),
+        expand(annotations_and_tax_dir + "{group}-gene-tax.tsv", group = group_ID_list),
+        expand(annotations_and_tax_dir + "{group}-annotations.tsv", group = group_ID_list),
+        expand(mapping_dir + "{group}-metabat-assembly-depth.tsv", group = group_ID_list),
+        expand(combined_output_dir + "{group}-gene-coverages-annotations-and-tax.tsv", group = group_ID_list),
+        expand(combined_output_dir + "{group}-CPM-normalized-gene-coverages-annotations-and-tax.tsv", group = group_ID_list),
+        group_sample_coverage_files_list,
+        group_sample_bams_list,
+        expand(mapping_dir + "{group}-bowtie2-build.log", group = group_ID_list),
+        expand(genes_dir + "{group}-genes.faa", group = group_ID_list),
         assemblies_dir + "assembly-summaries.tsv",
-        fastqc_out_dir + "raw_multiqc_report.html.zip",
+        expand(assemblies_dir + "{group}-coassembly.fa", group = group_ID_list),
+        fastqc_out_dir + "raw_multiqc.html",
         fastqc_out_dir + "raw_multiqc_data.zip",
-        fastqc_out_dir + "trimmed_multiqc_report.html.zip",
-        fastqc_out_dir + "trimmed_multiqc_data.zip",
-        read_based_dir + curr_GLDS + "-gene-families-cpm.tsv",
-        read_based_dir + curr_GLDS + "-gene-families-KO-cpm.tsv",
-        read_based_dir + curr_GLDS + "-metaphlan-taxonomy.tsv"
+        fastqc_out_dir + "filtered_multiqc.html",
+        fastqc_out_dir + "filtered_multiqc_data.zip",
     shell:
         """
         # copying log file to store with processing info
@@ -169,248 +176,211 @@ rule all:
         """
 
 
-rule run_humann3:
-    """
-    This rule runs humann3 and metaphlan3 on each individual sample generating the
-    read-based functional annotations and taxonomic classifications.
-    """
-    conda:
-        "envs/humann3.yaml"
+rule generate_MAGs_overview_table:
     input:
-        R1 = filtered_reads_dir + filename_prefix + "{ID}" + trimmed_filename_R1_suffix,
-        R2 = filtered_reads_dir + filename_prefix + "{ID}" + trimmed_filename_R2_suffix
+        assembly_summaries = MAGs_dir + "MAG-assembly-summaries.tsv",
+        checkm_results = expand(MAGs_dir + "{group}-MAGs-checkm-out.tsv", group = group_ID_list),
+        gtdb_trigger = MAGs_dir + "gtdbtk-out"
     params:
-        combined_reads = read_based_dir + "{ID}-reads.tmp.fq.gz",
-        output_dir = read_based_dir + "{ID}-humann3-out-dir",
-        tmp_metaphlan = read_based_dir + "{ID}-humann3-out-dir/{ID}_humann_temp/{ID}_metaphlan_bugs_list.tsv",
-        tmp_dir = read_based_dir + "{ID}-humann3-out-dir/{ID}_humann_temp/"
+        gtdb_results = MAGs_dir + "gtdbtk-out/gtdbtk.*.summary.tsv",
+        checkm_tmp = MAGs_dir + "checkm-estimates.tmp",
+        gtdb_tmp = MAGs_dir + "gtdb-taxonomies.tmp",
+        checkm_w_header_tmp = MAGs_dir + "checkm-estimates-with-headers.tmp",
+        gtdb_w_header_tmp = MAGs_dir + "gtdb-taxonomies-with-headers.tmp",
+        overview_tmp = MAGs_dir + "MAGs-overview.tmp",
+        overview_header_tmp = MAGs_dir + "MAGs-overview-header.tmp",
+        overview_sorted_tmp = MAGs_dir + "MAGs-overview-sorted.tmp"
     output:
-        read_based_dir + "{ID}-humann3-out-dir/{ID}_genefamilies.tsv",
-        read_based_dir + "{ID}-humann3-out-dir/{ID}_pathabundance.tsv",
-        read_based_dir + "{ID}-humann3-out-dir/{ID}_pathcoverage.tsv",
-        read_based_dir + "{ID}-humann3-out-dir/{ID}_metaphlan_bugs_list.tsv"
+        MAGs_dir + "MAGs-overview.tsv"
     shell:
         """
-        cat {input.R1} {input.R2} > {params.combined_reads}
-        humann --input {params.combined_reads} --output {params.output_dir} --threads {num_threads} --output-basename {wildcards.ID} --metaphlan-options "--bowtie2db ${{MPA_DIR}} --unknown_estimation --add_viruses --sample_id {wildcards.ID}" --bowtie-options "--sensitive --mm" > /dev/null 2>&1
-        mv {params.tmp_metaphlan} {output[3]}
-        rm -rf {params.combined_reads} {params.tmp_dir}
+        # making sure none of the intermediate files exist already
+        rm -rf {params.checkm_tmp} {params.gtdb_tmp} {params.checkm_w_header_tmp} {params.gtdb_w_header_tmp} {params.overview_tmp} {params.overview_header_tmp} {params.overview_sorted_tmp}
+
+        for MAG in $(cut -f 1 {input.assembly_summaries} | tail -n +2)
+        do
+
+            MAG_base=$(echo ${{MAG}} | cut -f 2- -d "-")
+
+            grep -w -m 1 "^${{MAG_base}}" {input.checkm_results} | cut -f 12,13 >> {params.checkm_tmp}
+
+            # note: below won't work with darwin sed due to tab character
+            grep -w "^${{MAG}}" {params.gtdb_results} | cut -f 2 | sed 's/^.__//' | sed 's/;.__/\\t/g' | awk -F $'\\t' ' BEGIN {{ OFS=FS }} {{ for (i=1; i<=NF; i++) if ( $i ~/^ *$/) $i = "NA" }}; 1 ' >> {params.gtdb_tmp}
+
+        done
+
+        # adding headers
+        cat <(printf "est. completeness\\test. redundancy\\n") {params.checkm_tmp} > {params.checkm_w_header_tmp}
+        cat <(printf "domain\\tphylum\\tclass\\torder\\tfamily\\tgenus\\tspecies\\n") {params.gtdb_tmp} > {params.gtdb_w_header_tmp}
+
+        paste {input.assembly_summaries} {params.checkm_w_header_tmp} {params.gtdb_w_header_tmp} > {params.overview_tmp}
+
+        # ordering by taxonomy
+        head -n 1 {params.overview_tmp} > {params.overview_header_tmp}
+        tail -n +2 {params.overview_tmp} | sort -t $'\\t' -k 13,19 > {params.overview_sorted_tmp}
+
+        cat {params.overview_header_tmp} {params.overview_sorted_tmp} > {output}
+
+        rm -rf {params.checkm_tmp} {params.gtdb_tmp} {params.checkm_w_header_tmp} {params.gtdb_w_header_tmp} {params.overview_tmp} {params.overview_header_tmp} {params.overview_sorted_tmp}
         """
 
 
-rule combine_read_based_processing_tables:
-    """
-    This rule combines the read-based humann3 output functional tables from indiviual samples into single 
-    tables across the GLDS dataset.
-    """
-    conda:
-        "envs/humann3.yaml"
-    input:
-        gene_families = expand(read_based_dir + "{ID}-humann3-out-dir/{ID}_genefamilies.tsv", ID = sample_ID_list),
-        path_abundances = expand(read_based_dir + "{ID}-humann3-out-dir/{ID}_pathabundance.tsv", ID = sample_ID_list),
-        path_coverages = expand(read_based_dir + "{ID}-humann3-out-dir/{ID}_pathcoverage.tsv", ID = sample_ID_list)
-    params:
-        gene_fam_dir = read_based_dir + "gene-family-results/",
-        path_abund_dir = read_based_dir + "path-abundance-results/",
-        path_cov_dir = read_based_dir + "path-coverage-results/",
-    output:
-        gene_families = read_based_dir + "gene-families-initial.tsv",
-        path_abundances = read_based_dir + "pathway-abundances-initial.tsv",
-        path_coverages = read_based_dir + "pathway-coverages-initial.tsv"
-    shell:
-        """
-          # they all need to be in the same directory to be merged
-        mkdir -p {params}
-        cp {input.gene_families} {params.gene_fam_dir}
-        cp {input.path_abundances} {params.path_abund_dir}
-        cp {input.path_coverages} {params.path_cov_dir}
+rule summarize_MAG_assemblies:
+   """ summarize MAG assemblies """
 
-        humann_join_tables -i {params.gene_fam_dir} -o {output.gene_families} > /dev/null 2>&1
-        humann_join_tables -i {params.path_abund_dir} -o {output.path_abundances} > /dev/null 2>&1
-        humann_join_tables -i {params.path_cov_dir} -o {output.path_coverages} > /dev/null 2>&1
-
-        rm -rf {params}
-        """
-
-
-rule split_read_based_processing_tables:
-    """
-    The read-based functional annotation tables have taxonomic info and non-taxonomic info mixed
-    together initially. humann comes with utility scripts to split these. This rule does that,
-    generating non-taxonomically grouped functional info files and taxonomically grouped ones.
-    """
-    conda:
-        "envs/humann3.yaml"
-    input:
-        gene_families = read_based_dir + "gene-families-initial.tsv",
-        path_abundances = read_based_dir + "pathway-abundances-initial.tsv",
-        path_coverages = read_based_dir + "pathway-coverages-initial.tsv"
-    output:
-        gene_families = read_based_dir + curr_GLDS + "-gene-families.tsv",
-        gene_families_grouped = read_based_dir + curr_GLDS + "-gene-families-grouped-by-taxa.tsv",
-        path_abundances = read_based_dir + curr_GLDS + "-pathway-abundances.tsv",
-        path_abundances_grouped = read_based_dir + curr_GLDS + "-pathway-abundances-grouped-by-taxa.tsv",
-        path_coverages = read_based_dir + curr_GLDS + "-pathway-coverages.tsv",
-        path_coverages_grouped = read_based_dir + curr_GLDS + "-pathway-coverages-grouped-by-taxa.tsv",
-    shell:
-        """
-        humann_split_stratified_table -i {input.gene_families} -o {read_based_dir} > /dev/null 2>&1
-        mv {read_based_dir}gene-families-initial_stratified.tsv {output.gene_families_grouped}
-        mv {read_based_dir}gene-families-initial_unstratified.tsv {output.gene_families}
-
-        humann_split_stratified_table -i {input.path_abundances} -o {read_based_dir} > /dev/null 2>&1
-        mv {read_based_dir}pathway-abundances-initial_stratified.tsv {output.path_abundances_grouped}
-        mv {read_based_dir}pathway-abundances-initial_unstratified.tsv {output.path_abundances}
-
-        humann_split_stratified_table -i {input.path_coverages} -o {read_based_dir} > /dev/null 2>&1
-        mv {read_based_dir}pathway-coverages-initial_stratified.tsv {output.path_coverages_grouped}
-        mv {read_based_dir}pathway-coverages-initial_unstratified.tsv {output.path_coverages}
-
-        rm {input}
-        """
-
-
-rule gen_normalized_read_based_processing_tables:
-    """
-    This rule generates some normalized tables of the read-based functional outputs from
-    humann that are more readily suitable for across sample comparisons.
-    """
-    conda:
-        "envs/humann3.yaml"
-    input:
-        gene_families = read_based_dir + curr_GLDS + "-gene-families.tsv",
-        path_abundances = read_based_dir + curr_GLDS + "-pathway-abundances.tsv"
-    output:
-        gene_families_cpm = read_based_dir + curr_GLDS + "-gene-families-cpm.tsv",
-        path_abundances_cpm = read_based_dir + curr_GLDS + "-pathway-abundances-cpm.tsv"
-    shell:
-        """
-        humann_renorm_table -i {input.gene_families} -o {output.gene_families_cpm} --update-snames > /dev/null 2>&1
-        humann_renorm_table -i {input.path_abundances} -o {output.path_abundances_cpm} --update-snames > /dev/null 2>&1
-        """
-
-
-rule gen_read_based_processing_KO_table:
-    """
-    This rule summarizes the read-based humann annotations based on Kegg Orthlogy terms.
-    """
-    conda:
-        "envs/humann3.yaml"
-    input:
-        gene_families = read_based_dir + curr_GLDS + "-gene-families.tsv"
-    output:
-        gene_families_KOs_cpm = read_based_dir + curr_GLDS + "-gene-families-KO-cpm.tsv"
-    shell:
-        """
-        humann_regroup_table -i {input} -g uniref90_ko 2> /dev/null | humann_rename_table -n kegg-orthology 2> /dev/null | humann_renorm_table -o {output} --update-snames > /dev/null 2>&1
-        """
-
-
-rule combine_read_based_processing_taxonomy:
-    """
-    This rule includes final outputs from read-based functional annotation process as inputs even though they aren't used just so
-    we can delete those working directories when done with them here (ensuring the other processes are already done with them).
-    """
-    conda:
-        "envs/humann3.yaml"
-    input:
-        in_files = expand(read_based_dir + "{ID}-humann3-out-dir/{ID}_metaphlan_bugs_list.tsv", ID = sample_ID_list),
-        trigger1 = read_based_dir + curr_GLDS + "-gene-families-cpm.tsv",
-        trigger2 = read_based_dir + curr_GLDS + "-gene-families-KO-cpm.tsv"
-    output:
-        read_based_dir + curr_GLDS + "-metaphlan-taxonomy.tsv"
-    shell:
-        """
-        merge_metaphlan_tables.py {input.in_files} > {output} 2> /dev/null
-
-        # removing redundant text from headers (using the -i flag to keep it portable with darwin shell)
-        sed -i.tmp 's/_metaphlan_bugs_list//g' {output}
-        rm {output}.tmp
-        """
-
-
-rule make_combined_tables:
     conda:
         "envs/bit.yaml"
     input:
-        expand(annotations_and_tax_dir + "{ID}-gene-coverage-annotation-and-tax.tsv", ID = sample_ID_list)
+        trigger = expand(bins_dir + "{group}-bins-checkm-out.tsv", group = group_ID_list)
     params:
-        out_prefix = combined_output_dir + curr_GLDS
+        intermediate_file = MAGs_dir + "MAGs-summaries.tmp"
     output:
-        combined_annots = combined_output_dir + curr_GLDS + "-KO-function-coverages.tsv",
-        combined_tax = combined_output_dir + curr_GLDS + "-taxonomy-coverages.tsv"
+        MAGs_dir + "MAG-assembly-summaries.tsv"
     shell:
         """
-        bit-GL-combine-KO-and-tax-tables {input} -o {params.out_prefix}
-          # shortening column names to unique part of sample names
-        sed -i.tmp 's/-gene-coverage-annotation-and-tax//g' {output.combined_annots} && rm {output.combined_annots}.tmp
-        sed -i.tmp 's/-gene-coverage-annotation-and-tax//g' {output.combined_tax} && rm {output.combined_tax}.tmp
+        bit-summarize-assembly {MAGs_dir}*/*.fa -o {params.intermediate_file} -t
+
+        # slimming down the output
+        cut -f 1,2,3,5,6,8,11,18,19,20 {params.intermediate_file} > {output}
+        rm {params.intermediate_file}
         """
 
 
-rule combine_contig_tax_and_coverage:
-    """
-    This rule combines the contig-level taxonomic and coverage information for each individual sample. 
-    """
+rule run_gtdbtk_on_MAGs:
+    """ assign taxonomy to MAGs with gtdb-tk """
+
+    conda:
+        "envs/gtdb-tk.yaml"
     input:
-        cov = mapping_dir + "{ID}-contig-coverages.tsv",
-        tax = annotations_and_tax_dir + "{ID}-contig-tax.tsv"
+        trigger = expand(MAGs_dir + "{group}-MAGs-checkm-out.tsv", group = group_ID_list)
     params:
-        contig_tmp = annotations_and_tax_dir + "{ID}-contig.tmp",
-        header_tmp = annotations_and_tax_dir + "{ID}-contig-header.tmp"
+        temp_all_MAGs_dir = MAGs_dir + "all-for-gtdb/"
     output:
-        annotations_and_tax_dir + "{ID}-contig-coverage-and-tax.tsv"
+        directory(MAGs_dir + "gtdbtk-out")
+    log:
+        MAGs_dir + "gtdbtk-out/gtdbtk-run.log"
     shell:
         """
-        paste <( tail -n +2 {input.cov} | sort -V -k 1 ) <( tail -n +2 {input.tax} | sort -V -k 1 | cut -f 2- ) > {params.contig_tmp}
-        paste <( head -n 1 {input.cov} ) <( head -n 1 {input.tax} | cut -f 2- ) > {params.header_tmp}
-        cat {params.header_tmp} {params.contig_tmp} > {output}
-        rm {params} {input}
+        mkdir -p {params.temp_all_MAGs_dir}
+
+        cp {MAGs_dir}*/*.fa {params.temp_all_MAGs_dir}
+
+        gtdbtk classify_wf --genome_dir {params.temp_all_MAGs_dir} -x fa --out_dir {output} --cpus {gtdb_tk_num_cpus} > {log} 2>&1
+
+        rm -rf {params.temp_all_MAGs_dir}
         """
 
 
-rule combine_gene_annots_tax_and_coverage:
-    """
-    This rule combines the gene-level functional annotations, taxonomic classifications, and coverage information for each individual sample.
-    """
+rule filtering_checkm_results_and_copying_MAGs:
     input:
-        cov = mapping_dir + "{ID}-gene-coverages.tsv",
-        annots = annotations_and_tax_dir + "{ID}-annotations.tsv",
-        tax = annotations_and_tax_dir + "{ID}-gene-tax.tsv"
-    params:
-        gene_tmp = annotations_and_tax_dir + "{ID}-gene.tmp",
-        header_tmp = annotations_and_tax_dir + "{ID}-gene-header.tmp"
+        bins_dir + "{group}-bins-checkm-out.tsv"
     output:
-        annotations_and_tax_dir + "{ID}-gene-coverage-annotation-and-tax.tsv"
+        MAGs_dir + "{group}-MAGs-checkm-out.tsv"
     shell:
         """
-        paste <( tail -n +2 {input.cov} | sort -V -k 1 ) <( tail -n +2 {input.annots} | sort -V -k 1 | cut -f 2- ) <( tail -n +2 {input.tax} | sort -V -k 1 | cut -f 2- ) > {params.gene_tmp}
-        paste <( head -n 1 {input.cov} ) <( head -n 1 {input.annots} | cut -f 2- ) <( head -n 1 {input.tax} | cut -f 2- ) > {params.header_tmp}
+        mkdir {MAGs_dir}{wildcards.group}/
 
-        cat {params.header_tmp} {params.gene_tmp} > {output}
+        cat <( head -n 1 {input} ) <( awk -F $'\\t' ' $12 >= 90 && $13 <= 10 && $14 == 0 ' {input} ) > {wildcards.group}-MAG-info.tmp
 
-        rm {params} {input}
+        sed 's/bin./{wildcards.group}-MAG-/' {wildcards.group}-MAG-info.tmp > {output}
+
+        for MAG in $(cut -f 1 {wildcards.group}-MAG-info.tmp | tail -n +2)
+        do
+            new_ID=$(echo $MAG | sed 's/bin./MAG-/')
+            cp {bins_dir}{wildcards.group}/${{MAG}}.fa {MAGs_dir}{wildcards.group}/{wildcards.group}-${{new_ID}}.fa
+        done
+
+        rm {wildcards.group}-MAG-info.tmp
+        """
+
+
+rule run_checkm_on_bins:
+    """ runs checkm on recovered bins """
+
+    conda:
+        "envs/checkm.yaml"
+    input:
+        curr_bins_dir = bins_dir + "{group}/",
+        trigger = mapping_dir + "{group}-metabat-assembly-depth.tsv"
+    params:
+        tmp_dir = bins_dir + "{group}/checkm-out-tmp/"
+    output:
+        bins_dir + "{group}-bins-checkm-out.tsv"
+    log:
+        bins_dir + "{group}-checkm.log"
+    shell:
+        """
+        checkm lineage_wf -f {output} --tab_table -t {num_cpus} --pplacer_threads {num_threads} -x fa {input.curr_bins_dir} {params.tmp_dir} > {log} 2>&1
+        rm -rf {params.tmp_dir}
+        """
+
+
+rule metabat_binning:
+    """
+    This rule runs metabat2 for binning contigs in each of the groups
+    """
+
+    conda:
+        "envs/metabat.yaml"
+    input:
+        assembly = assemblies_dir + "{group}-coassembly.fa",
+        bams = lambda wildcards: group_bam_dict[wildcards.group]
+    params:
+        prefix = bins_dir + "{group}"
+    output:
+        depth_file = mapping_dir + "{group}-metabat-assembly-depth.tsv"
+    shell:
+        """
+        jgi_summarize_bam_contig_depths --outputDepth {output.depth_file} --percentIdentity 97 --minContigLength 1000 --minContigDepth 1.0  --referenceFasta {input.assembly} {input.bams} > /dev/null 2>&1
+        metabat2  --inFile {input.assembly} --outFile {params.prefix}/bin --abdFile {output.depth_file} -t {num_threads} > /dev/null 2>&1
+        """
+
+rule combine_all_gene_coverages_collapsed_by_KO_and_tax:
+    input:
+        expand(combined_output_dir + "{group}-gene-coverages-annotations-and-tax.tsv", group = group_ID_list)
+    output:
+        combined_output_dir + "All-combined-KO-function-coverages.tsv",
+        combined_output_dir + "All-combined-KO-function-CPM-normalized-coverages.tsv",
+        combined_output_dir + "All-combined-taxonomy-coverages.tsv",
+        combined_output_dir + "All-combined-taxonomy-CPM-normalized-coverages.tsv"
+    shell:
+        """
+        python scripts/combine-all-gene-tables.py -o {combined_output_dir} {input}
+        """
+
+rule combine_group_gene_coverage_annots_and_tax:
+    input:
+        coverage_files = lambda wildcards: group_cov_dict[wildcards.group],
+        ko_tab = annotations_and_tax_dir + "{group}-annotations.tsv",
+        tax_tab = annotations_and_tax_dir + "{group}-gene-tax.tsv"
+    output:
+        combined_output_dir + "{group}-gene-coverages-annotations-and-tax.tsv",
+        combined_output_dir + "{group}-CPM-normalized-gene-coverages-annotations-and-tax.tsv"
+    shell:
+        """
+        python scripts/combine-gene-level-coverages-annots-and-tax-per-group.py -g {wildcards.group} -a {input.ko_tab} -t {input.tax_tab} -o {combined_output_dir} {input.coverage_files}
         """
 
 
 rule get_cov_and_det:
     """
     This rule pulls out coverage and detection information for each sample, gene-level and contig-level,
-    and filters the coverage information based on requiring at least 50% detection.
+    and filters the gene-level coverage information based on requiring at least 50% detection.
     """
+
     conda:
         "envs/mapping.yaml"
     input:
-        bam = mapping_dir + "{ID}.bam",
-        nt = genes_dir + "{ID}-genes.fasta"
+        bam = mapping_dir + "{ID}-{group}.bam",
+        nt = genes_dir + "{group}-genes.fa"
     params:
-        gene_cov_and_det_tmp = mapping_dir + "{ID}-gene-cov-and-det.tmp",
-        contig_cov_and_det_tmp = mapping_dir + "{ID}-contig-cov-and-det.tmp",
-        gene_cov_tmp = mapping_dir + "{ID}-gene-cov.tmp",
-        contig_cov_tmp = mapping_dir + "{ID}-contig-cov.tmp"
+        gene_cov_and_det_tmp = mapping_dir + "{ID}-{group}-gene-cov-and-det.tmp",
+        contig_cov_and_det_tmp = mapping_dir + "{ID}-{group}-contig-cov-and-det.tmp",
+        gene_cov_tmp = mapping_dir + "{ID}-{group}-gene-cov.tmp",
+        contig_cov_tmp = mapping_dir + "{ID}-{group}-contig-cov.tmp"
     output:
-        gene_covs = mapping_dir + "{ID}-gene-coverages.tsv",
-        contig_covs = mapping_dir + "{ID}-contig-coverages.tsv"
+        gene_covs = mapping_dir + "{ID}-{group}-gene-coverages.tsv",
+        contig_covs = mapping_dir + "{ID}-{group}-contig-coverages.tsv"
     shell:
         """
         pileup.sh -in {input.bam} fastaorf={input.nt} outorf={params.gene_cov_and_det_tmp} out={params.contig_cov_and_det_tmp} > /dev/null 2>&1
@@ -431,46 +401,62 @@ rule get_cov_and_det:
 
 rule run_mapping:
     """
-    This rule builds the bowtie2 index and runs the mapping for each sample.
+    This rule runs the mapping for each sample to its appropriate group coassembly.
     """
+    
     conda:
         "envs/mapping.yaml"
     input:
-        assembly = assemblies_dir + "{ID}-assembly.fasta",
-        R1 = filtered_reads_dir + filename_prefix + "{ID}" + trimmed_filename_R1_suffix,
-        R2 = filtered_reads_dir + filename_prefix + "{ID}" + trimmed_filename_R2_suffix
+        mapping_trigger = mapping_dir + "{group}-bowtie2-build.log",
+        R1 = filtered_reads_dir + "{ID}" + trimmed_R1_suffix,
+        R2 = filtered_reads_dir + "{ID}" + trimmed_R2_suffix
     params:
-        index = mapping_dir + "{ID}-index"
+        index = mapping_dir + "{group}-index"
     output:
-        mapping_dir + "{ID}.bam"
+        mapping_dir + "{ID}-{group}.bam"
     log:
-        mapping_dir + "{ID}-mapping.log"
+        mapping_dir + "{ID}-{group}-mapping-info.txt"
     shell:
         """
-        bowtie2-build {input.assembly} {params.index} > /dev/null 2>&1
-        bowtie2 --threads {num_threads} -x {params.index} -1 {input.R1} -2 {input.R2} 2> {log} | samtools view -b | samtools sort -@ {num_threads} > {output} 2> /dev/null
+        bowtie2 --mm -q --threads {num_threads} -x {params.index} -1 {input.R1} -2 {input.R2} --no-unal 2> {log} | samtools view -b | samtools sort -@ {num_threads} > {output} 2> /dev/null
         samtools index -@ {num_threads} {output}
+        """
 
-        rm {params.index}*
+
+rule build_bowtie2_index:
+    """ Builds bowtie2 databases """
+
+    conda:
+        "envs/mapping.yaml"
+    input:
+        assemblies_dir + "{group}-coassembly.fa"
+    params:
+        basename = mapping_dir + "{group}-index"
+    output:
+        mapping_trigger = mapping_dir + "{group}-bowtie2-build.log"
+    shell:
+        """
+        bowtie2-build {input} {params.basename} > {output.mapping_trigger} 2>&1
         """
 
 
 rule run_tax_classification:
     """
-    This rule runs the gene- and contig-level taxonomic classifications for each sample.
+    This rule runs the gene- and contig-level taxonomic classifications for each coassembly.
     """
+
     conda:
         "envs/cat.yaml"
     input:
-        assembly = assemblies_dir + "{ID}-assembly.fasta",
-        AA = genes_dir + "{ID}-genes.faa"
+        assembly = assemblies_dir + "{group}-coassembly.fa",
+        AA = genes_dir + "{group}-genes.faa"
     output:
-        gene_tax_out = annotations_and_tax_dir + "{ID}-gene-tax.tsv",
-        contig_tax_out = annotations_and_tax_dir + "{ID}-contig-tax.tsv"
+        gene_tax_out = annotations_and_tax_dir + "{group}-gene-tax.tsv",
+        contig_tax_out = annotations_and_tax_dir + "{group}-contig-tax.tsv"
     params:
-        tmp_out_prefix = annotations_and_tax_dir + "{ID}-tax-out.tmp",
-        tmp_genes = annotations_and_tax_dir + "{ID}-gene-tax.tmp",
-        tmp_contigs = annotations_and_tax_dir + "{ID}-contig-tax.tmp"
+        tmp_out_prefix = annotations_and_tax_dir + "{group}-tax-out.tmp",
+        tmp_genes = annotations_and_tax_dir + "{group}-gene-tax.tmp",
+        tmp_contigs = annotations_and_tax_dir + "{group}-contig-tax.tmp"
     shell:
         """
         CAT contigs -d ${{CAT_DIR}}/2020-06-18_database/ -t ${{CAT_DIR}}/2020-06-18_taxonomy/ -n {num_cpus} -r 3 --top 4 --I_know_what_Im_doing -c {input.assembly} -p {input.AA} -o {params.tmp_out_prefix} > /dev/null 2>&1
@@ -495,45 +481,47 @@ rule run_tax_classification:
         sed 's/not classified/NA/g' | sed 's/superkingdom/domain/' | sed 's/: [0-9\.]*//g' | sed 's/^# contig/contig_ID/' | \
         sed 's/lineage/taxid/' | sed 's/\*//g' > {output.contig_tax_out}
 
-        rm -rf {annotations_and_tax_dir}{wildcards.ID}*tmp*
+        rm -rf {annotations_and_tax_dir}{wildcards.group}*tmp*
         """
 
 
 rule run_KO_annotation:
     """
-    This rule runs the gene-level (KO) functional annotation for each sample.
+    This rule runs the gene-level (KO) functional annotation for each coassembly.
     """
+
     conda:
         "envs/kofamscan.yaml"
     input:
-        genes_dir + "{ID}-genes.faa"
+        genes_dir + "{group}-genes.faa"
     output:
-        annotations_and_tax_dir + "{ID}-annotations.tsv"
+        annotations_and_tax_dir + "{group}-annotations.tsv"
     params:
-        tmp_out = annotations_and_tax_dir + "{ID}-KO-tab.tmp",
-        tmp_dir = annotations_and_tax_dir + "{ID}-tmp-KO-dir"
+        tmp_out = annotations_and_tax_dir + "{group}-KO-tab.tmp",
+        tmp_dir = annotations_and_tax_dir + "{group}-tmp-KO-dir"
     shell:
         """
-        exec_annotation -p ${{KO_DIR}}/profiles/ -k ${{KO_DIR}}/ko_list --cpu {num_cpus} -f detail-tsv -o {params.tmp_out} --tmp-dir {params.tmp_dir} --report-unannotated {input} 
+        exec_annotation -p ${{KO_DIR}}/profiles/ -k ${{KO_DIR}}/ko_list --cpu {num_cpus} -f detail-tsv -o {params.tmp_out} --tmp-dir {params.tmp_dir} --report-unannotated {input}
 
         bit-filter-KOFamScan-results -i {params.tmp_out} -o {output}
 
-        rm -rf {params.tmp_out} {params.tmp_dir} 
+        rm -rf {params.tmp_out} {params.tmp_dir}
         """
 
 
 rule call_genes:
     """
-    This rule calls genes on each sample's assembly file.
+    This rule calls genes on each group's coassembly file.
     """
+
     conda:
         "envs/prodigal.yaml"
     input:
-        assemblies_dir + "{ID}-assembly.fasta"
+        assemblies_dir + "{group}-coassembly.fa"
     output:
-        AA = genes_dir + "{ID}-genes.faa",
-        nt = genes_dir + "{ID}-genes.fasta",
-        gff = genes_dir + "{ID}-genes.gff"
+        AA = genes_dir + "{group}-genes.faa",
+        nt = genes_dir + "{group}-genes.fa",
+        gff = genes_dir + "{group}-genes.gff"
     shell:
         """
         prodigal -q -c -p meta -a {output.AA} -d {output.nt} -f gff -o {output.gff} -i {input}
@@ -544,10 +532,11 @@ rule summarize_assemblies:
     """
     This rule summarizes and reports general stats for all individual sample assemblies in one table.
     """
+
     conda:
         "envs/bit.yaml"
     input:
-        expand(assemblies_dir + "{ID}-assembly.fasta", ID = sample_ID_list),
+        expand(assemblies_dir + "{group}-coassembly.fa", group = group_ID_list),
     output:
         assemblies_dir + "assembly-summaries.tsv"
     shell:
@@ -556,70 +545,72 @@ rule summarize_assemblies:
         """
 
 
-rule assemble:
+rule assembly:
     """
-    This rule handles running the assembly for each individual sample.
+    This rule handles running the co-assembly for each individual group of samples.
     """
+
     conda:
         "envs/megahit.yaml"
     input:
-        R1 = filtered_reads_dir + filename_prefix + "{ID}" + trimmed_filename_R1_suffix,
-        R2 = filtered_reads_dir + filename_prefix + "{ID}" + trimmed_filename_R2_suffix
+        R1_reads = lambda wildcards: R1_group_dict[wildcards.group],
+        R2_reads = lambda wildcards: R2_group_dict[wildcards.group]
     output:
-        assemblies_dir + "{ID}-assembly.fasta"
+        assemblies_dir + "{group}-coassembly.fa"
     log:
-        assemblies_dir + "{ID}-assembly.log"
+        assemblies_dir + "{group}-coassembly.log"
     shell:
         """
         # removing output directory if exists already but rule still needs to be run (because there is no --force option to megahit i dont't think):
-        rm -rf {assemblies_dir}{wildcards.ID}-megahit-out/
+        rm -rf {assemblies_dir}{wildcards.group}-megahit-out/
 
-        megahit -1 {input.R1} -2 {input.R1} -m {max_mem} -t {num_threads} --min-contig-len 500 -o {assemblies_dir}{wildcards.ID}-megahit-out > {log} 2>&1
-        bit-rename-fasta-headers -i {assemblies_dir}{wildcards.ID}-megahit-out/final.contigs.fa -w c_{wildcards.ID} -o {output}
+        R1_reads=$(echo {input.R1_reads} | tr " " ",")
+        R2_reads=$(echo {input.R2_reads} | tr " " ",")
 
-        rm -rf {assemblies_dir}{wildcards.ID}-megahit-out/
+        megahit -1 ${{R1_reads}} -2 ${{R2_reads}} -m {max_mem} -t {num_threads} --min-contig-len 500 -o {assemblies_dir}{wildcards.group}-megahit-out > {log} 2>&1
+        bit-rename-fasta-headers -i {assemblies_dir}{wildcards.group}-megahit-out/final.contigs.fa -w c_{wildcards.group} -o {output}
+
+        # getting rid of assembly directory to save space
+        rm -rf {assemblies_dir}{wildcards.group}-megahit-out/
         """
 
+rule filtered_fastqc:
+    """
+    This rule runs fastqc on all trimmed/filtered input fastq files.
+    """
 
-rule raw_fastqc:
-    """
-    This rule runs fastqc on all raw input fastq files.
-    """
     conda:
         "envs/qc.yaml"
     input:
-        raw_reads_dir + filename_prefix + "{ID}" + filename_R1_suffix,
-        raw_reads_dir + filename_prefix + "{ID}" + filename_R2_suffix        
+        filtered_reads_dir + "{ID}" + trimmed_R1_suffix,
+        filtered_reads_dir + "{ID}" + trimmed_R2_suffix
     output:
-        raw_reads_dir + filename_prefix + "{ID}" + raw_fastqc_R1_suffix,
-        raw_reads_dir + filename_prefix + "{ID}" + raw_fastqc_R2_suffix
+        filtered_reads_dir + "{ID}" + trimmed_fastqc_R1_suffix,
+        filtered_reads_dir + "{ID}" + trimmed_fastqc_R2_suffix
     shell:
         """
-        fastqc {input} -t {num_threads} -q
-        """
+		fastqc {input} -t {num_threads} -q
+		"""
 
 
-rule raw_multiqc:
+rule filtered_multiqc:
     """
-    This rule collates all raw fastqc outputs.
+    This rule collates all trimmed/filtered fastqc outputs.
     """
+
     conda:
         "envs/qc.yaml"
     input:
-        expand(raw_reads_dir + filename_prefix + "{ID}" + raw_fastqc_R1_suffix, ID = sample_ID_list),
-        expand(raw_reads_dir + filename_prefix + "{ID}" + raw_fastqc_R2_suffix, ID = sample_ID_list)
+        expand(filtered_reads_dir + "{ID}" + trimmed_fastqc_R1_suffix, ID = sample_ID_list),
+        expand(filtered_reads_dir + "{ID}" + trimmed_fastqc_R2_suffix, ID = sample_ID_list)
     output:
-        fastqc_out_dir + "raw_multiqc_report.html.zip",
-        fastqc_out_dir + "raw_multiqc_data.zip"
+        fastqc_out_dir + "filtered_multiqc.html",
+        fastqc_out_dir + "filtered_multiqc_data.zip"
     shell:
         """
-        multiqc -z -q -o {fastqc_out_dir}raw_tmp_qc {raw_reads_dir} > /dev/null 2>&1
-          # renaming the outputs and zipping html to enable uploading in GL framework
-        mv {fastqc_out_dir}raw_tmp_qc/multiqc_data.zip {fastqc_out_dir}raw_multiqc_data.zip
-        mv {fastqc_out_dir}raw_tmp_qc/multiqc_report.html {fastqc_out_dir}raw_multiqc_report.html
-        zip -q {fastqc_out_dir}raw_multiqc_report.html.zip {fastqc_out_dir}raw_multiqc_report.html && rm {fastqc_out_dir}raw_multiqc_report.html
-          # removing the individual fastqc files
-        rm -rf {raw_reads_dir}*fastqc* {fastqc_out_dir}raw_tmp_qc/
+        multiqc -z -q -o {fastqc_out_dir} -n filtered_multiqc  {filtered_reads_dir} > /dev/null 2>&1
+          # removing the individual fastqc files and temp locations
+        rm -rf {filtered_reads_dir}*fastqc*
         """
 
 
@@ -627,14 +618,15 @@ rule bbduk:
     """
     This rule runs quality filtering/trimming on raw input fastq files for each individual sample.
     """
+
     conda:
         "envs/qc.yaml"
     input:
-        in1 = raw_reads_dir + filename_prefix + "{ID}" + filename_R1_suffix,
-        in2 = raw_reads_dir + filename_prefix + "{ID}" + filename_R2_suffix
+        in1 = raw_reads_dir + "{ID}" + raw_R1_suffix,
+        in2 = raw_reads_dir + "{ID}" + raw_R2_suffix
     output:
-        out1 = filtered_reads_dir + filename_prefix + "{ID}" + trimmed_filename_R1_suffix,
-        out2 = filtered_reads_dir + filename_prefix + "{ID}" + trimmed_filename_R2_suffix
+        out1 = filtered_reads_dir + "{ID}" + trimmed_R1_suffix,
+        out2 = filtered_reads_dir + "{ID}" + trimmed_R2_suffix
     log:
         filtered_reads_dir + "bbduk-{ID}.log"
     shell:
@@ -645,46 +637,44 @@ rule bbduk:
         """
 
 
-rule trimmed_fastqc:
+rule raw_multiqc:
     """
-    This rule runs fastqc on all trimmed/filtered input fastq files.
+    This rule collates all raw fastqc outputs.
     """
+
     conda:
         "envs/qc.yaml"
     input:
-        filtered_reads_dir + filename_prefix + "{ID}" + trimmed_filename_R1_suffix,
-        filtered_reads_dir + filename_prefix + "{ID}" + trimmed_filename_R2_suffix
+        expand(raw_reads_dir + "{ID}" + raw_fastqc_R1_suffix, ID = sample_ID_list),
+        expand(raw_reads_dir + "{ID}" + raw_fastqc_R2_suffix, ID = sample_ID_list)
     output:
-        filtered_reads_dir + filename_prefix + "{ID}" + trimmed_fastqc_R1_suffix,
-        filtered_reads_dir + filename_prefix + "{ID}" + trimmed_fastqc_R2_suffix
+        fastqc_out_dir + "raw_multiqc.html",
+        fastqc_out_dir + "raw_multiqc_data.zip"
     shell:
         """
-        fastqc {input} -t {num_threads} -q
+        multiqc -z -q -o {fastqc_out_dir} -n raw_multiqc {raw_reads_dir} > /dev/null 2>&1
+          # removing the individual fastqc files
+        rm -rf {raw_reads_dir}*fastqc*
         """
 
 
-rule trimmed_multiqc:
+rule raw_fastqc:
     """
-    This rule collates all trimmed/filtered fastqc outputs.
+    This rule runs fastqc on all raw input fastq files.
     """
+
     conda:
         "envs/qc.yaml"
     input:
-        expand(filtered_reads_dir + filename_prefix + "{ID}" + trimmed_fastqc_R1_suffix, ID = sample_ID_list),
-        expand(filtered_reads_dir + filename_prefix + "{ID}" + trimmed_fastqc_R2_suffix, ID = sample_ID_list)
+        raw_reads_dir + "{ID}" + raw_R1_suffix,
+        raw_reads_dir + "{ID}" + raw_R2_suffix        
     output:
-        fastqc_out_dir + "trimmed_multiqc_report.html.zip",
-        fastqc_out_dir + "trimmed_multiqc_data.zip"
+        raw_reads_dir + "{ID}" + raw_fastqc_R1_suffix,
+        raw_reads_dir + "{ID}" + raw_fastqc_R2_suffix
     shell:
         """
-        multiqc -z -q -o {fastqc_out_dir}trimmed_tmp_qc {filtered_reads_dir} > /dev/null 2>&1
-          # renaming the outputs and zipping html to enable uploading in GL framework
-        mv {fastqc_out_dir}trimmed_tmp_qc/multiqc_data.zip {fastqc_out_dir}trimmed_multiqc_data.zip
-        mv {fastqc_out_dir}trimmed_tmp_qc/multiqc_report.html {fastqc_out_dir}trimmed_multiqc_report.html
-        zip -q {fastqc_out_dir}trimmed_multiqc_report.html.zip {fastqc_out_dir}trimmed_multiqc_report.html && rm {fastqc_out_dir}trimmed_multiqc_report.html
-          # removing the individual fastqc files and temp locations
-        rm -rf {filtered_reads_dir}*fastqc* {fastqc_out_dir}trimmed_tmp_qc/
-        """
+		fastqc {input} -t {num_threads} -q
+		"""
 
 
 rule clean_all:

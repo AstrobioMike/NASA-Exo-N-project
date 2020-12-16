@@ -1,0 +1,2 @@
+snakemake --use-conda --conda-prefix ${CONDA_PREFIX}/envs -j 8 -p
+

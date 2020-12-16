@@ -1,0 +1,71 @@
+########################################
+############# General Info #############
+########################################
+
+Expected to be run in the conda environment installed as below, or with the specified programs and versions accessible:
+This display with all together is for convenience if wanted. If not, or if the environment won't build with all of them together like this, it can also be run with each rule having its own conda environments as shown next:
+
+# conda create -y -n Lee-N-metagenomics -c conda-forge -c bioconda -c defaults -c biobakery -c astrobiomike \
+#              fastqc=0.11.9 multiqc=1.9 bbmap=38.86 megahit=1.2.9 bit=1.8.17 bowtie2=2.3.5.1 \
+#              samtools=1.9 prodigal=2.6.3 kofamscan=1.3.0 blast=2.9.0 cat=5.1.2 metaphlan=3.0.4 \
+#              humann=3.0.0.alpha.3 snakemake=5.19.3
+
+# conda activate Lee-N-metagenomics
+
+OR, things can be run with `--use-conda` added to the snakemake call, based on the yaml files in the "envs/" subdirectory, though that still requires setting up the databases for the environments that need them as discussed next,
+and each variable for a specific program would need to be added to that specific conda environment (if running all in the same conda environment, all would be initially set in that same conda environment)
+If doing that, still need to install snakemake in the base conda environment first:
+# conda install -c conda-forge -c bioconda -c defaults snakemake=5.19.3
+
+  ## Additional notes on conda individual rule conda environments ##
+    # By default snakemake will make the new conda environments every time it runs in a new location, but you can tell it to use the same ones by providing `--conda-prefix <path/to/conda/envs>` in addition to `--use-conda`
+    # If this is the first time setting up, it can be run with the `--conda-create-envs-only` flag to generate the conda environments, then again with `--list-conda-envs` and the `-n` flag (dry run), this will
+      # show where the conda environments are/what their names are, so we can activate them individually in order to set up the following required databases (only needed on initial setup)
+    # example run using individual conda envs: snakemake -j 4 --use-conda --conda-prefix <path/to/conda/envs> -p
+
+### Reference databases that require one-time setup ###
+
+The KOFamScan reference files can be downloaded as follows:
+# curl -LO ftp://ftp.genome.jp/pub/db/kofam/profiles.tar.gz
+# curl -LO ftp://ftp.genome.jp/pub/db/kofam/ko_list.gz
+# tar -xzvf profiles.tar.gz
+# gunzip ko_list.gz
+
+As written, the directory holding them should be in this "KO_DIR" shell env. variable:
+This variable can be permanently added to the conda environment like so (modified to be the path to the actual directory):
+# mkdir -p ${CONDA_PREFIX}/etc/conda/activate.d/
+# echo 'export KO_DIR=/path/to/kofamscan_db' >> ${CONDA_PREFIX}/etc/conda/activate.d/set_env_vars.sh
+    # then deactivate and reactivate conda environment for it to take effect
+
+The CAT reference files can be downloaded as follows:
+# wget tbb.bio.uu.nl/bastiaan/CAT_prepare/CAT_prepare_20200618.tar.gz
+# tar -xvzf CAT_prepare_20200618.tar.gz
+
+As written, the directory holding them should be in the "CAT_DIR" shell env. variable
+This variable can be permanentily added to the conda environment like noted above for the KO_DIR variable:
+# mkdir -p ${CONDA_PREFIX}/etc/conda/activate.d/
+# echo 'export CAT_DIR=/path/to/CAT_prepare_20200618' >> ${CONDA_PREFIX}/etc/conda/activate.d/set_env_vars.sh
+    # then deactivate and reactivate conda environment for it to take effect
+
+The checkm reference directory needs to be downloaded and set, was done with the following
+# execute in the directory where it wants to be stored
+# curl -LO https://data.ace.uq.edu.au/public/CheckM_databases/checkm_data_2015_01_16.tar.gz
+# tar -xzvf checkm_data_2015_01_16.tar.gz
+# checkm data setRoot $PWD
+
+The gtdbtk reference directory needs to be downloaded and set, can be done with their helper script in the conda environment
+# download-db.sh
+
+humann3
+# humann3 and metaphlan3 databases downloaded with the following:
+# humann3_databases --download chocophlan full <location>
+# humann3_databases --download uniref uniref90_ec_filtered_diamond <location>
+# humann3_databases --download utility_mapping full <location>
+# metaphlan --install --bowtie2db <location>
+
+The humann3 db locations are automatically tracked by the program, if not putting metaphlan in the default location,
+it can be added to the conda environment same as above:
+# mkdir -p ${CONDA_PREFIX}/etc/conda/activate.d/
+# echo 'export MPA_DIR=/path/to/metaphlan3-db' >> ${CONDA_PREFIX}/etc/conda/activate.d/set_env_vars.sh
+    # then deactivate and reactivate conda environment for it to take effect
+"""

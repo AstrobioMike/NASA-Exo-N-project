@@ -1,7 +1,7 @@
+name: checkm
 channels:
     - conda-forge
     - bioconda
     - defaults
-    - astrobiomike
 dependencies:
-    - bit=1.8.17
+    - checkm-genome

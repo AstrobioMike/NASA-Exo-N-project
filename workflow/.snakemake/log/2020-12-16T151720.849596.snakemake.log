@@ -1,0 +1,79 @@
+Building DAG of jobs...
+Using shell: /bin/bash
+Provided cores: 4
+Rules claiming more threads will be scaled down.
+Job counts:
+	count	jobs
+	1	all
+	2	assembly
+	4	bbduk
+	2	build_bowtie2_index
+	2	call_genes
+	1	combine_all_gene_coverages_collapsed_by_KO_and_tax
+	2	combine_group_gene_coverage_annots_and_tax
+	4	filtered_fastqc
+	1	filtered_multiqc
+	2	filtering_checkm_results_and_copying_MAGs
+	1	generate_MAGs_overview_table
+	4	get_cov_and_det
+	2	metabat_binning
+	4	raw_fastqc
+	1	raw_multiqc
+	2	run_KO_annotation
+	2	run_checkm_on_bins
+	1	run_gtdbtk_on_MAGs
+	4	run_mapping
+	2	run_tax_classification
+	1	summarize_MAG_assemblies
+	1	summarize_assemblies
+	46
+
+[Wed Dec 16 15:17:21 2020]
+rule bbduk:
+    input: ../raw-reads/P9-R1.fq.gz, ../raw-reads/P9-R2.fq.gz
+    output: ../filtered-reads/P9-R1-trimmed.fq.gz, ../filtered-reads/P9-R2-trimmed.fq.gz
+    log: ../filtered-reads/bbduk-P9.log
+    jobid: 35
+    wildcards: ID=P9
+
+
+        bbduk.sh in=../raw-reads/P9-R1.fq.gz in2=../raw-reads/P9-R2.fq.gz out1=../filtered-reads/P9-R1-trimmed.fq.gz out2=../filtered-reads/P9-R2-trimmed.fq.gz                 ref=${CONDA_PREFIX}/opt/bbmap-38.86-0/resources/adapters.fa ktrim=l k=17 ftm=5 qtrim=rl                 trimq=10 mlf=0.5 maxns=0 > ../filtered-reads/bbduk-P9.log 2>&1
+        
+
+[Wed Dec 16 15:17:21 2020]
+rule bbduk:
+    input: ../raw-reads/P38-R1.fq.gz, ../raw-reads/P38-R2.fq.gz
+    output: ../filtered-reads/P38-R1-trimmed.fq.gz, ../filtered-reads/P38-R2-trimmed.fq.gz
+    log: ../filtered-reads/bbduk-P38.log
+    jobid: 37
+    wildcards: ID=P38
+
+
+        bbduk.sh in=../raw-reads/P38-R1.fq.gz in2=../raw-reads/P38-R2.fq.gz out1=../filtered-reads/P38-R1-trimmed.fq.gz out2=../filtered-reads/P38-R2-trimmed.fq.gz                 ref=${CONDA_PREFIX}/opt/bbmap-38.86-0/resources/adapters.fa ktrim=l k=17 ftm=5 qtrim=rl                 trimq=10 mlf=0.5 maxns=0 > ../filtered-reads/bbduk-P38.log 2>&1
+        
+
+[Wed Dec 16 15:17:21 2020]
+rule raw_fastqc:
+    input: ../raw-reads/P9-R1.fq.gz, ../raw-reads/P9-R2.fq.gz
+    output: ../raw-reads/P9-R1_fastqc.zip, ../raw-reads/P9-R2_fastqc.zip
+    jobid: 41
+    wildcards: ID=P9
+
+
+		fastqc ../raw-reads/P9-R1.fq.gz ../raw-reads/P9-R2.fq.gz -t 10 -q
+		
+
+[Wed Dec 16 15:17:21 2020]
+rule raw_fastqc:
+    input: ../raw-reads/P38-R1.fq.gz, ../raw-reads/P38-R2.fq.gz
+    output: ../raw-reads/P38-R1_fastqc.zip, ../raw-reads/P38-R2_fastqc.zip
+    jobid: 40
+    wildcards: ID=P38
+
+
+		fastqc ../raw-reads/P38-R1.fq.gz ../raw-reads/P38-R2.fq.gz -t 10 -q
+		
+Activating conda environment: /data1/mlee/miniconda3/envs/15da5b0b
+Activating conda environment: /data1/mlee/miniconda3/envs/15da5b0b
+Activating conda environment: /data1/mlee/miniconda3/envs/15da5b0b
+Activating conda environment: /data1/mlee/miniconda3/envs/15da5b0b
