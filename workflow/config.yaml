@@ -1,13 +1,23 @@
 ### Variables that likely need to be adjusted ###
 
-# root directory of databases (or where they will be downloaded if they don't exist yet)
+
+#### REFERENCE DATABASES ####
+## Note on reference databases ##
+# The workflow will check the locations pointed to below and install the databases
+# if they are not already there. It looks for the below filenames in the directory
+# for each database, which it creates when it sets them up initially. If we want to
+# point to DBs that already exist on our setup, rather than setting up new ones, we
+# need to add these files to their respective directories. They should be empty, the
+# workflow just checks the file is there, to know it doesn't need to setup the DB.
+
+## root directory of databases (or where they will be downloaded if they don't exist yet)
 REF_DB_ROOT_DIR:
-    "/home/mdlee4/ref-dbs/"    
+    "~/ref-dbs/"    
 
-### Safer not to adjust these unless needed/wanted ###
-
+## specific database locations
 KOFAMSCAN_DIR:
     "kofamscan_db"
+    # trigger file name: 
 CAT_DIR:
     "CAT_prepare_20200618"
 GTDB_DATA_PATH:
