@@ -6,7 +6,6 @@
 import os
 import pandas as pd
 
-
 ########################################
 ############# General Info #############
 ########################################
@@ -15,7 +14,6 @@ import pandas as pd
 See the corresponding 'config.yaml' file for general use information. 
 Variables that may need to be adjusted should be changed there, not here.
 """
-
 
 ###############################################################################
 ######## Pulling variables from config file for easier calling in here ########
@@ -50,7 +48,6 @@ num_cpus = config["num_cpus"]
 gtdb_tk_num_cpus = config["gtdb_tk_num_cpus"]
 max_mem = config["max_mem"]
 
-
 ###########################################
 ########### Ref database stuff ############
 ###########################################
@@ -62,6 +59,7 @@ kofamscan_db_trigger = REF_DB_ROOT_DIR + config["KOFAMSCAN_DIR"] + "/KO_DB_SETUP
 cat_db_trigger = REF_DB_ROOT_DIR + config["CAT_DIR"] + "/CAT_DB_SETUP"
 checkm_db_trigger = REF_DB_ROOT_DIR + config["CHECKM_DIR"] + "/CHECKM_DB_SETUP"
 gtdbtk_db_trigger = REF_DB_ROOT_DIR + config["GTDB_DATA_PATH"] + "/GTDBTK_DB_SETUP"
+
 
 
 #############################################
@@ -112,7 +110,6 @@ for group in group_ID_list:
     group_sample_coverage_files_list += group_sample_coverages_files(group)
     group_cov_dict[group] = group_sample_coverages_files(group)
 
-
 ########################################
 ######## Setting up directories ########
 ########################################
@@ -128,7 +125,6 @@ for dir in expand(bins_dir + "{group}", group = group_ID_list):
         os.mkdir(dir)
     except:
         pass
-
 
 ########################################
 ############# Rules start ##############
@@ -157,7 +153,7 @@ rule all:
         fastqc_out_dir + "filtered_multiqc_data.zip"
     shell:
         """
-        # copying log file to main workflow directory
+        # copying log file to store with processing info
         cp .snakemake/log/$(ls -t .snakemake/log/ | head -n 1) snakemake-run.log
         """
 
@@ -581,8 +577,8 @@ rule filtered_fastqc:
         filtered_reads_dir + "{ID}" + trimmed_R1_suffix,
         filtered_reads_dir + "{ID}" + trimmed_R2_suffix
     output:
-        filtered_reads_dir + "{ID}-R1-trimmed.fq.gz",
-        filtered_reads_dir + "{ID}-R2-trimmed.fq.gz"
+        filtered_reads_dir + "{ID}-R1-trimmed_fastqc.zip",
+        filtered_reads_dir + "{ID}-R2-trimmed_fastqc.zip"
     shell:
         """
 		fastqc {input} -t {num_threads} -q
@@ -597,8 +593,8 @@ rule filtered_multiqc:
     conda:
         "envs/qc.yaml"
     input:
-        expand(filtered_reads_dir + "{ID}-R1-trimmed.fq.gz", ID = sample_ID_list),
-        expand(filtered_reads_dir + "{ID}-R2-trimmed.fq.gz", ID = sample_ID_list)
+        expand(filtered_reads_dir + "{ID}-R1-trimmed_fastqc.zip", ID = sample_ID_list),
+        expand(filtered_reads_dir + "{ID}-R2-trimmed_fastqc.zip", ID = sample_ID_list)
     output:
         fastqc_out_dir + "filtered_multiqc.html",
         fastqc_out_dir + "filtered_multiqc_data.zip"

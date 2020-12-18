@@ -1,8 +1,11 @@
-#############################
-###### VARIABLES TO SET #####
-#############################
+############################################################
+##################### VARIABLES TO SET #####################
+#############################################################
 
+#############################################################
 ##### These first 6 need to match what is on our system #####
+#############################################################
+
 ## path to single column file holding unique portion of sample names, e.g.:
         # Sample-1
         # Sample-2
@@ -39,8 +42,9 @@ raw_R2_suffix:
 raw_reads_dir:
     "../raw-reads/"
 
-
+######################################################################
 ##### The rest only need to be altered if we want to change them #####
+######################################################################
 
 ## number of threads to use PER snakemake job (which is set with the -j parameter passed to snakemake call)
     # passed to megahit, bowtie2, samtools, metabat2, checkm-pplacer (many may be running concurrently)
