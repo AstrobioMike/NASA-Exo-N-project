@@ -6,6 +6,8 @@
 import os
 import pandas as pd
 
+configfile: "config.yaml"
+
 
 ########################################
 ############# General Info #############
@@ -17,62 +19,36 @@ Variables that may need to be adjusted should be changed there, not here.
 """
 
 
-###############################################################################
-######## Pulling variables from config file for easier calling in here ########
-###############################################################################
-configfile: "config.yaml"
-
-sample_info_file = config["sample_info_file"]
-
-raw_R1_suffix = config["raw_R1_suffix"]
-raw_R2_suffix = config["raw_R2_suffix"]
-trimmed_R1_suffix = config["trimmed_R1_suffix"]
-trimmed_R2_suffix = config["trimmed_R2_suffix"]
-
-raw_reads_dir = config["raw_reads_dir"]
-fastqc_out_dir = config["fastqc_out_dir"]
-filtered_reads_dir = config["filtered_reads_dir"]
-assemblies_dir = config["assemblies_dir"]
-genes_dir = config["genes_dir"]
-annotations_and_tax_dir = config["annotations_and_tax_dir"]
-mapping_dir = config["mapping_dir"]
-combined_output_dir = config["combined_output_dir"]
-bins_dir = config["bins_dir"]
-MAGs_dir = config["MAGs_dir"]
-logs_dir = config["logs_dir"]
-
-dirs_to_create = [fastqc_out_dir, filtered_reads_dir, assemblies_dir, genes_dir, 
-                 annotations_and_tax_dir, mapping_dir, combined_output_dir, bins_dir,
-                 logs_dir, MAGs_dir]
-
-num_threads = config["num_threads"]
-num_cpus = config["num_cpus"]
-gtdb_tk_num_cpus = config["gtdb_tk_num_cpus"]
-max_mem = config["max_mem"]
-
-
-###########################################
-########### Ref database stuff ############
-###########################################
-
-REF_DB_ROOT_DIR = config["REF_DB_ROOT_DIR"]
-
-# database triggers (for downloading and setting up if they aren't already present)
-kofamscan_db_trigger = REF_DB_ROOT_DIR + config["KOFAMSCAN_DIR"] + "/KO_DB_SETUP"
-cat_db_trigger = REF_DB_ROOT_DIR + config["CAT_DIR"] + "/CAT_DB_SETUP"
-checkm_db_trigger = REF_DB_ROOT_DIR + config["CHECKM_DIR"] + "/CHECKM_DB_SETUP"
-gtdbtk_db_trigger = REF_DB_ROOT_DIR + config["GTDB_DATA_PATH"] + "/GTDBTK_DB_SETUP"
-
-
 ###############################################################
 ###### Reading info file and parsing into needed objects ######
 ###############################################################
 
-sample_and_group_info = pd.read_csv(sample_info_file, sep="\t", names = ["sample", "group"])
+sample_and_group_info = pd.read_csv(config["sample_info_file"], sep="\t", names = ["sample", "group"])
 
 sample_ID_list = pd.unique(sample_and_group_info["sample"]).tolist()
 
 group_ID_list = pd.unique(sample_and_group_info["group"]).tolist()
+
+
+################################################
+######## Setting up directory structure ########
+################################################
+
+dirs_to_create = [config["fastqc_out_dir"], config["filtered_reads_dir"], config["assemblies_dir"], 
+                 config["genes_dir"], config["annotations_and_tax_dir"], config["mapping_dir"], 
+                 config["combined_output_dir"], config["bins_dir"], config["MAGs_dir"], config["logs_dir"]]
+
+for dir in dirs_to_create:
+    try:
+        os.mkdir(dir)
+    except:
+        pass
+
+for dir in expand(config["bins_dir"] + "{group}", group = group_ID_list):
+    try:
+        os.mkdir(dir)
+    except:
+        pass
 
 
 ###################################################################################
@@ -81,11 +57,11 @@ group_ID_list = pd.unique(sample_and_group_info["group"]).tolist()
 
 def group_R1_reads(target_group, sample_and_group_info = sample_and_group_info):
     target_samples_list = list(sample_and_group_info[sample_and_group_info.group.eq(target_group)]['sample'].values)
-    return(expand(filtered_reads_dir + "{ID}" + trimmed_R1_suffix, ID = target_samples_list))
+    return(expand(config["filtered_reads_dir"] + "{ID}" + config["trimmed_R1_suffix"], ID = target_samples_list))
 
 def group_R2_reads(target_group, sample_and_group_info = sample_and_group_info):
     target_samples_list = list(sample_and_group_info[sample_and_group_info.group.eq(target_group)]['sample'].values)
-    return(expand(filtered_reads_dir + "{ID}" + trimmed_R2_suffix, ID = target_samples_list))
+    return(expand(config["filtered_reads_dir"] + "{ID}" + config["trimmed_R2_suffix"], ID = target_samples_list))
 
 R1_group_dict, R2_group_dict = {}, {}
 for group in group_ID_list:
@@ -96,7 +72,7 @@ for group in group_ID_list:
 group_sample_bams_list, group_bam_dict = [], {}
 def group_sample_bams(target_group, sample_and_group_info = sample_and_group_info):
     target_samples_list = list(sample_and_group_info[sample_and_group_info.group.eq(target_group)]['sample'].values)
-    return(expand(mapping_dir + "{ID}-" + group + ".bam", ID = target_samples_list))
+    return(expand(config["mapping_dir"] + "{ID}-" + group + ".bam", ID = target_samples_list))
 
 for group in group_ID_list:
     group_sample_bams_list += group_sample_bams(group)
@@ -106,27 +82,12 @@ for group in group_ID_list:
 group_sample_coverage_files_list, group_cov_dict = [], {}
 def group_sample_coverages_files(target_group, sample_and_group_info = sample_and_group_info):
     target_samples_list = list(sample_and_group_info[sample_and_group_info.group.eq(target_group)]['sample'].values)
-    return(expand(mapping_dir + "{ID}-" + group + "-gene-coverages.tsv", ID = target_samples_list))
+    return(expand(config["mapping_dir"] + "{ID}-" + group + "-gene-coverages.tsv", ID = target_samples_list))
 
 for group in group_ID_list:
     group_sample_coverage_files_list += group_sample_coverages_files(group)
     group_cov_dict[group] = group_sample_coverages_files(group)
 
-########################################
-######## Setting up directories ########
-########################################
-
-for dir in dirs_to_create:
-	try:
-		os.mkdir(dir)
-	except:
-		pass
-
-for dir in expand(bins_dir + "{group}", group = group_ID_list):
-    try:
-        os.mkdir(dir)
-    except:
-        pass
 
 ########################################
 ############# Rules start ##############
@@ -134,25 +95,12 @@ for dir in expand(bins_dir + "{group}", group = group_ID_list):
 
 rule all:
     input:
-        combined_output_dir + "All-combined-KO-function-coverages.tsv",
-        combined_output_dir + "All-combined-KO-function-CPM-normalized-coverages.tsv",
-        combined_output_dir + "All-combined-taxonomy-coverages.tsv",
-        combined_output_dir + "All-combined-taxonomy-CPM-normalized-coverages.tsv",
-        MAGs_dir + "gtdbtk-out",
-        MAGs_dir + "MAGs-overview.tsv",
-        expand(mapping_dir + "{group}-metabat-assembly-depth.tsv", group = group_ID_list),
-        expand(combined_output_dir + "{group}-gene-coverages-annotations-and-tax.tsv", group = group_ID_list),
-        expand(combined_output_dir + "{group}-CPM-normalized-gene-coverages-annotations-and-tax.tsv", group = group_ID_list),
-        group_sample_coverage_files_list,
-        group_sample_bams_list,
-        expand(mapping_dir + "{group}-bowtie2-build.log", group = group_ID_list),
-        expand(genes_dir + "{group}-genes.faa", group = group_ID_list),
-        assemblies_dir + "assembly-summaries.tsv",
-        expand(assemblies_dir + "{group}-coassembly.fa", group = group_ID_list),
-        fastqc_out_dir + "raw_multiqc.html",
-        fastqc_out_dir + "raw_multiqc_data.zip",
-        fastqc_out_dir + "filtered_multiqc.html",
-        fastqc_out_dir + "filtered_multiqc_data.zip"
+        config["combined_output_dir"] + "All-combined-KO-function-coverages.tsv",
+        config["MAGs_dir"] + "gtdbtk-out",
+        config["MAGs_dir"] + "MAGs-overview.tsv",
+        config["assemblies_dir"] + "assembly-summaries.tsv",
+        config["fastqc_out_dir"] + "raw_multiqc_data.zip",
+        config["fastqc_out_dir"] + "filtered_multiqc_data.zip"
     shell:
         """
         # copying log file to store with processing info
@@ -162,20 +110,20 @@ rule all:
 
 rule generate_MAGs_overview_table:
     input:
-        assembly_summaries = MAGs_dir + "MAG-assembly-summaries.tsv",
-        checkm_results = expand(MAGs_dir + "{group}-MAGs-checkm-out.tsv", group = group_ID_list),
-        gtdb_done_trigger = MAGs_dir + "gtdbtk-out"
+        assembly_summaries = config["MAGs_dir"] + "MAG-assembly-summaries.tsv",
+        checkm_results = expand(config["MAGs_dir"] + "{group}-MAGs-checkm-out.tsv", group = group_ID_list),
+        gtdb_done_trigger = config["MAGs_dir"] + "gtdbtk-out"
     params:
-        gtdb_results = MAGs_dir + "gtdbtk-out/gtdbtk.*.summary.tsv",
-        checkm_tmp = MAGs_dir + "checkm-estimates.tmp",
-        gtdb_tmp = MAGs_dir + "gtdb-taxonomies.tmp",
-        checkm_w_header_tmp = MAGs_dir + "checkm-estimates-with-headers.tmp",
-        gtdb_w_header_tmp = MAGs_dir + "gtdb-taxonomies-with-headers.tmp",
-        overview_tmp = MAGs_dir + "MAGs-overview.tmp",
-        overview_header_tmp = MAGs_dir + "MAGs-overview-header.tmp",
-        overview_sorted_tmp = MAGs_dir + "MAGs-overview-sorted.tmp"
+        gtdb_results = config["MAGs_dir"] + "gtdbtk-out/gtdbtk.*.summary.tsv",
+        checkm_tmp = config["MAGs_dir"] + "checkm-estimates.tmp",
+        gtdb_tmp = config["MAGs_dir"] + "gtdb-taxonomies.tmp",
+        checkm_w_header_tmp = config["MAGs_dir"] + "checkm-estimates-with-headers.tmp",
+        gtdb_w_header_tmp = config["MAGs_dir"] + "gtdb-taxonomies-with-headers.tmp",
+        overview_tmp = config["MAGs_dir"] + "MAGs-overview.tmp",
+        overview_header_tmp = config["MAGs_dir"] + "MAGs-overview-header.tmp",
+        overview_sorted_tmp = config["MAGs_dir"] + "MAGs-overview-sorted.tmp"
     output:
-        MAGs_dir + "MAGs-overview.tsv"
+        config["MAGs_dir"] + "MAGs-overview.tsv"
     shell:
         """
         # making sure none of the intermediate files exist already
@@ -213,14 +161,15 @@ rule summarize_MAG_assemblies:
     conda:
         "envs/bit.yaml"
     input:
-        trigger = expand(MAGs_dir + "{group}-MAGs-checkm-out.tsv", group = group_ID_list)
+        trigger = expand(config["MAGs_dir"] + "{group}-MAGs-checkm-out.tsv", group = group_ID_list)
     params:
-        intermediate_file = MAGs_dir + "MAGs-summaries.tmp"
+        intermediate_file = config["MAGs_dir"] + "MAGs-summaries.tmp",
+        MAGs_dir = config["MAGs_dir"]
     output:
-        MAGs_dir + "MAG-assembly-summaries.tsv"
+        config["MAGs_dir"] + "MAG-assembly-summaries.tsv"
     shell:
         """
-        bit-summarize-assembly {MAGs_dir}*/*.fa -o {params.intermediate_file} -t
+        bit-summarize-assembly {params.MAGs_dir}*/*.fa -o {params.intermediate_file} -t
 
         # slimming down the output
         cut -f 1,2,3,5,6,8,11,18,19,20 {params.intermediate_file} > {output}
@@ -234,21 +183,23 @@ rule run_gtdbtk_on_MAGs:
     conda:
         "envs/gtdb-tk.yaml"
     input:
-        trigger = expand(MAGs_dir + "{group}-MAGs-checkm-out.tsv", group = group_ID_list),
-        db_trigger = gtdbtk_db_trigger
+        trigger = expand(config["MAGs_dir"] + "{group}-MAGs-checkm-out.tsv", group = group_ID_list),
+        gtdbtk_db_trigger = config["REF_DB_ROOT_DIR"] + config["GTDB_DATA_PATH"] + "/" + config["GTDB_TRIGGER_FILE"]
     params:
-        temp_all_MAGs_dir = MAGs_dir + "all-for-gtdb/"
+        temp_all_MAGs_dir = config["MAGs_dir"] + "all-for-gtdb/",
+        MAGs_dir = config["MAGs_dir"],
+        gtdb_tk_num_cpus = config["gtdb_tk_num_cpus"]
     output:
-        directory(MAGs_dir + "gtdbtk-out")
+        directory(config["MAGs_dir"] + "gtdbtk-out")
     log:
-        logs_dir + "gtdbtk-run.log"
+        config["logs_dir"] + "gtdbtk-run.log"
     shell:
         """
         mkdir -p {params.temp_all_MAGs_dir}
 
-        cp {MAGs_dir}*/*.fa {params.temp_all_MAGs_dir}
+        cp {params.MAGs_dir}*/*.fa {params.temp_all_MAGs_dir}
 
-        gtdbtk classify_wf --genome_dir {params.temp_all_MAGs_dir} -x fa --out_dir {output} --cpus {gtdb_tk_num_cpus} > {log} 2>&1
+        gtdbtk classify_wf --genome_dir {params.temp_all_MAGs_dir} -x fa --out_dir {output} --cpus {params.gtdb_tk_num_cpus} > {log} 2>&1
 
         rm -rf {params.temp_all_MAGs_dir}
         """
@@ -256,12 +207,15 @@ rule run_gtdbtk_on_MAGs:
 
 rule filtering_checkm_results_and_copying_MAGs:
     input:
-        bins_dir + "{group}-bins-checkm-out.tsv"
+        config["bins_dir"] + "{group}-bins-checkm-out.tsv"
     output:
-        MAGs_dir + "{group}-MAGs-checkm-out.tsv"
+        config["MAGs_dir"] + "{group}-MAGs-checkm-out.tsv"
+    params:
+        bins_dir = config["bins_dir"],
+        MAGs_dir = config["MAGs_dir"]
     shell:
         """
-        mkdir -p {MAGs_dir}{wildcards.group}/
+        mkdir -p {params.MAGs_dir}{wildcards.group}/
 
         cat <( head -n 1 {input} ) <( awk -F $'\\t' ' $12 >= 90 && $13 <= 10 && $14 == 0 ' {input} ) > {wildcards.group}-MAG-info.tmp
 
@@ -270,7 +224,7 @@ rule filtering_checkm_results_and_copying_MAGs:
         for MAG in $(cut -f 1 {wildcards.group}-MAG-info.tmp | tail -n +2)
         do
             new_ID=$(echo $MAG | sed 's/bin./MAG-/')
-            cp {bins_dir}{wildcards.group}/${{MAG}}.fa {MAGs_dir}{wildcards.group}/{wildcards.group}-${{new_ID}}.fa
+            cp {params.bins_dir}{wildcards.group}/${{MAG}}.fa {params.MAGs_dir}{wildcards.group}/{wildcards.group}-${{new_ID}}.fa
         done
 
         rm {wildcards.group}-MAG-info.tmp
@@ -283,18 +237,20 @@ rule run_checkm_on_bins:
     conda:
         "envs/checkm.yaml"
     input:
-        curr_bins_dir = bins_dir + "{group}/",
-        trigger = mapping_dir + "{group}-metabat-assembly-depth.tsv",
-        db_trigger = checkm_db_trigger
+        curr_bins_dir = config["bins_dir"] + "{group}/",
+        trigger = config["mapping_dir"] + "{group}-metabat-assembly-depth.tsv",
+        checkm_db_trigger = config["REF_DB_ROOT_DIR"] + config["CHECKM_DIR"] + "/" + config["CHECKM_TRIGGER_FILE"]
     params:
-        tmp_dir = bins_dir + "{group}/checkm-out-tmp/"
+        tmp_dir = config["bins_dir"] + "{group}/checkm-out-tmp/",
+        num_threads = config["num_threads"],
+        num_cpus = config["num_cpus"]
     output:
-        bins_dir + "{group}-bins-checkm-out.tsv"
+        config["bins_dir"] + "{group}-bins-checkm-out.tsv"
     log:
-        logs_dir + "{group}-checkm.log"
+        config["logs_dir"] + "{group}-checkm.log"
     shell:
         """
-        checkm lineage_wf -f {output} --tab_table -t {num_cpus} --pplacer_threads {num_threads} -x fa {input.curr_bins_dir} {params.tmp_dir} > {log} 2>&1
+        checkm lineage_wf -f {output} --tab_table -t {params.num_cpus} --pplacer_threads {params.num_threads} -x fa {input.curr_bins_dir} {params.tmp_dir} > {log} 2>&1
         rm -rf {params.tmp_dir}
         """
 
@@ -307,44 +263,49 @@ rule metabat_binning:
     conda:
         "envs/metabat.yaml"
     input:
-        assembly = assemblies_dir + "{group}-coassembly.fa",
+        assembly = config["assemblies_dir"] + "{group}-coassembly.fa",
         bams = lambda wildcards: group_bam_dict[wildcards.group]
     params:
-        prefix = bins_dir + "{group}"
+        prefix = config["bins_dir"] + "{group}",
+        num_threads = config["num_threads"]
     output:
-        depth_file = mapping_dir + "{group}-metabat-assembly-depth.tsv"
+        depth_file = config["mapping_dir"] + "{group}-metabat-assembly-depth.tsv"
     log:
-        logs_dir + "{group}-bam-summarize-and-metabat.log"
+        config["logs_dir"] + "{group}-bam-summarize-and-metabat.log"
     shell:
         """
         jgi_summarize_bam_contig_depths --outputDepth {output.depth_file} --percentIdentity 97 --minContigLength 1000 --minContigDepth 1.0  --referenceFasta {input.assembly} {input.bams} > {log} 2>&1
-        metabat2  --inFile {input.assembly} --outFile {params.prefix}/bin --abdFile {output.depth_file} -t {num_threads} > {log} 2>&1
+        metabat2  --inFile {input.assembly} --outFile {params.prefix}/bin --abdFile {output.depth_file} -t {params.num_threads} > {log} 2>&1
         """
 
 rule combine_all_gene_coverages_collapsed_by_KO_and_tax:
     input:
-        expand(combined_output_dir + "{group}-gene-coverages-annotations-and-tax.tsv", group = group_ID_list)
+        expand(config["combined_output_dir"] + "{group}-gene-coverages-annotations-and-tax.tsv", group = group_ID_list)
     output:
-        combined_output_dir + "All-combined-KO-function-coverages.tsv",
-        combined_output_dir + "All-combined-KO-function-CPM-normalized-coverages.tsv",
-        combined_output_dir + "All-combined-taxonomy-coverages.tsv",
-        combined_output_dir + "All-combined-taxonomy-CPM-normalized-coverages.tsv"
+        config["combined_output_dir"] + "All-combined-KO-function-coverages.tsv",
+        config["combined_output_dir"] + "All-combined-KO-function-CPM-normalized-coverages.tsv",
+        config["combined_output_dir"] + "All-combined-taxonomy-coverages.tsv",
+        config["combined_output_dir"] + "All-combined-taxonomy-CPM-normalized-coverages.tsv"
+    params:
+        combined_output_dir = config["combined_output_dir"]
     shell:
         """
-        python scripts/combine-all-gene-tables.py -o {combined_output_dir} {input}
+        python scripts/combine-all-gene-tables.py -o {params.combined_output_dir} {input}
         """
 
 rule combine_group_gene_coverage_annots_and_tax:
     input:
         coverage_files = lambda wildcards: group_cov_dict[wildcards.group],
-        ko_tab = annotations_and_tax_dir + "{group}-annotations.tsv",
-        tax_tab = annotations_and_tax_dir + "{group}-gene-tax.tsv"
+        ko_tab = config["annotations_and_tax_dir"] + "{group}-annotations.tsv",
+        tax_tab = config["annotations_and_tax_dir"] + "{group}-gene-tax.tsv"
     output:
-        combined_output_dir + "{group}-gene-coverages-annotations-and-tax.tsv",
-        combined_output_dir + "{group}-CPM-normalized-gene-coverages-annotations-and-tax.tsv"
+        config["combined_output_dir"] + "{group}-gene-coverages-annotations-and-tax.tsv",
+        config["combined_output_dir"] + "{group}-CPM-normalized-gene-coverages-annotations-and-tax.tsv"
+    params:
+        combined_output_dir = config["combined_output_dir"]
     shell:
         """
-        python scripts/combine-gene-level-coverages-annots-and-tax-per-group.py -g {wildcards.group} -a {input.ko_tab} -t {input.tax_tab} -o {combined_output_dir} {input.coverage_files}
+        python scripts/combine-gene-level-coverages-annots-and-tax-per-group.py -g {wildcards.group} -a {input.ko_tab} -t {input.tax_tab} -o {params.combined_output_dir} {input.coverage_files}
         """
 
 
@@ -357,18 +318,18 @@ rule get_cov_and_det:
     conda:
         "envs/mapping.yaml"
     input:
-        bam = mapping_dir + "{ID}-{group}.bam",
-        nt = genes_dir + "{group}-genes.fa"
+        bam = config["mapping_dir"] + "{ID}-{group}.bam",
+        nt = config["genes_dir"] + "{group}-genes.fa"
     params:
-        gene_cov_and_det_tmp = mapping_dir + "{ID}-{group}-gene-cov-and-det.tmp",
-        contig_cov_and_det_tmp = mapping_dir + "{ID}-{group}-contig-cov-and-det.tmp",
-        gene_cov_tmp = mapping_dir + "{ID}-{group}-gene-cov.tmp",
-        contig_cov_tmp = mapping_dir + "{ID}-{group}-contig-cov.tmp"
+        gene_cov_and_det_tmp = config["mapping_dir"] + "{ID}-{group}-gene-cov-and-det.tmp",
+        contig_cov_and_det_tmp = config["mapping_dir"] + "{ID}-{group}-contig-cov-and-det.tmp",
+        gene_cov_tmp = config["mapping_dir"] + "{ID}-{group}-gene-cov.tmp",
+        contig_cov_tmp = config["mapping_dir"] + "{ID}-{group}-contig-cov.tmp"
     output:
-        gene_covs = mapping_dir + "{ID}-{group}-gene-coverages.tsv",
-        contig_covs = mapping_dir + "{ID}-{group}-contig-coverages.tsv"
+        gene_covs = config["mapping_dir"] + "{ID}-{group}-gene-coverages.tsv",
+        contig_covs = config["mapping_dir"] + "{ID}-{group}-contig-coverages.tsv"
     log:
-        logs_dir + "{ID}-{group}-pileup.log"
+        config["logs_dir"] + "{ID}-{group}-pileup.log"
     shell:
         """
         pileup.sh -in {input.bam} fastaorf={input.nt} outorf={params.gene_cov_and_det_tmp} out={params.contig_cov_and_det_tmp} > {log} 2>&1
@@ -395,18 +356,19 @@ rule run_mapping:
     conda:
         "envs/mapping.yaml"
     input:
-        mapping_trigger = mapping_dir + "{group}-bowtie2-build.log",
-        R1 = filtered_reads_dir + "{ID}" + trimmed_R1_suffix,
-        R2 = filtered_reads_dir + "{ID}" + trimmed_R2_suffix
+        mapping_trigger = config["mapping_dir"] + "{group}-bowtie2-build.log",
+        R1 = config["filtered_reads_dir"] + "{ID}" + config["trimmed_R1_suffix"],
+        R2 = config["filtered_reads_dir"] + "{ID}" + config["trimmed_R2_suffix"]
     params:
-        index = mapping_dir + "{group}-index",
-        mapping_info = mapping_dir + "{ID}-{group}-mapping-info.txt"
+        index = config["mapping_dir"] + "{group}-index",
+        mapping_info = config["mapping_dir"] + "{ID}-{group}-mapping-info.txt",
+        num_threads = config["num_threads"]
     output:
-        mapping_dir + "{ID}-{group}.bam"
+        config["mapping_dir"] + "{ID}-{group}.bam"
     shell:
         """
-        bowtie2 --mm -q --threads {num_threads} -x {params.index} -1 {input.R1} -2 {input.R2} --no-unal 2> {params.mapping_info} | samtools view -b | samtools sort -@ {num_threads} > {output} 2> /dev/null
-        samtools index -@ {num_threads} {output}
+        bowtie2 --mm -q --threads {params.num_threads} -x {params.index} -1 {input.R1} -2 {input.R2} --no-unal 2> {params.mapping_info} | samtools view -b | samtools sort -@ {params.num_threads} > {output} 2> /dev/null
+        samtools index -@ {params.num_threads} {output}
         """
 
 
@@ -416,11 +378,11 @@ rule build_bowtie2_index:
     conda:
         "envs/mapping.yaml"
     input:
-        assemblies_dir + "{group}-coassembly.fa"
+        config["assemblies_dir"] + "{group}-coassembly.fa"
     params:
-        basename = mapping_dir + "{group}-index"
+        basename = config["mapping_dir"] + "{group}-index"
     output:
-        mapping_trigger = mapping_dir + "{group}-bowtie2-build.log"
+        mapping_trigger = config["mapping_dir"] + "{group}-bowtie2-build.log"
     shell:
         """
         bowtie2-build {input} {params.basename} > {output.mapping_trigger} 2>&1
@@ -435,23 +397,24 @@ rule run_tax_classification:
     conda:
         "envs/cat.yaml"
     input:
-        assembly = assemblies_dir + "{group}-coassembly.fa",
-        AA = genes_dir + "{group}-genes.faa",
-        db_trigger = cat_db_trigger
+        assembly = config["assemblies_dir"] + "{group}-coassembly.fa",
+        AA = config["genes_dir"] + "{group}-genes.faa",
+        cat_db_trigger = config["REF_DB_ROOT_DIR"] + config["CAT_DIR"] + "/" + config["CAT_TRIGGER_FILE"]
     output:
-        gene_tax_out = annotations_and_tax_dir + "{group}-gene-tax.tsv",
-        contig_tax_out = annotations_and_tax_dir + "{group}-contig-tax.tsv"
+        gene_tax_out = config["annotations_and_tax_dir"] + "{group}-gene-tax.tsv",
+        contig_tax_out = config["annotations_and_tax_dir"] + "{group}-contig-tax.tsv"
     params:
-        tmp_out_prefix = annotations_and_tax_dir + "{group}-tax-out.tmp",
-        tmp_genes = annotations_and_tax_dir + "{group}-gene-tax.tmp",
-        tmp_contigs = annotations_and_tax_dir + "{group}-contig-tax.tmp",
-        cat_db = REF_DB_ROOT_DIR + config["CAT_DIR"] + config["CAT_DB"],
-        cat_tax = REF_DB_ROOT_DIR + config["CAT_DIR"] + config["CAT_TAX"]
+        tmp_out_prefix = config["annotations_and_tax_dir"] + "{group}-tax-out.tmp",
+        tmp_genes = config["annotations_and_tax_dir"] + "{group}-gene-tax.tmp",
+        tmp_contigs = config["annotations_and_tax_dir"] + "{group}-contig-tax.tmp",
+        cat_db = config["REF_DB_ROOT_DIR"] + config["CAT_DIR"] + config["CAT_DB"],
+        cat_tax = config["REF_DB_ROOT_DIR"] + config["CAT_DIR"] + config["CAT_TAX"],
+        num_cpus = config["num_cpus"]
     log:
-        logs_dir + "{group}-CAT.log"
+        config["logs_dir"] + "{group}-CAT.log"
     shell:
         """
-        CAT contigs -d {params.cat_db} -t {params.cat_tax} -n {num_cpus} -r 3 --top 4 --I_know_what_Im_doing -c {input.assembly} -p {input.AA} -o {params.tmp_out_prefix} --force > {log} 2>&1
+        CAT contigs -d {params.cat_db} -t {params.cat_tax} -n {params.num_cpus} -r 3 --top 4 --I_know_what_Im_doing -c {input.assembly} -p {input.AA} -o {params.tmp_out_prefix} --force > {log} 2>&1
 
         # adding names to gene classifications
         CAT add_names -i {params.tmp_out_prefix}.ORF2LCA.txt -o {params.tmp_genes} -t {params.cat_tax} --only_official > {log} 2>&1
@@ -485,19 +448,20 @@ rule run_KO_annotation:
     conda:
         "envs/kofamscan.yaml"
     input:
-        AAs = genes_dir + "{group}-genes.faa",
-        db_trigger = kofamscan_db_trigger
+        AAs = config["genes_dir"] + "{group}-genes.faa",
+        kofamscan_db_trigger = config["REF_DB_ROOT_DIR"] + config["KOFAMSCAN_DIR"] + "/" + config["KOFAMSCAN_TRIGGER_FILE"]
     output:
-        annotations_and_tax_dir + "{group}-annotations.tsv"
+        config["annotations_and_tax_dir"] + "{group}-annotations.tsv"
     params:
-        ko_db_dir = REF_DB_ROOT_DIR + config["KOFAMSCAN_DIR"],
-        tmp_out = annotations_and_tax_dir + "{group}-KO-tab.tmp",
-        tmp_dir = annotations_and_tax_dir + "{group}-tmp-KO-dir"
+        ko_db_dir = config["REF_DB_ROOT_DIR"] + config["KOFAMSCAN_DIR"],
+        tmp_out = config["annotations_and_tax_dir"] + "{group}-KO-tab.tmp",
+        tmp_dir = config["annotations_and_tax_dir"] + "{group}-tmp-KO-dir",
+        num_cpus = config["num_cpus"]
     log:
-        logs_dir + "{group}-kofamscan.log"
+        config["logs_dir"] + "{group}-kofamscan.log"
     shell:
         """
-        exec_annotation -p {params.ko_db_dir}/profiles/ -k {params.ko_db_dir}/ko_list --cpu {num_cpus} -f detail-tsv -o {params.tmp_out} --tmp-dir {params.tmp_dir} --report-unannotated {input.AAs} > {log} 2>&1
+        exec_annotation -p {params.ko_db_dir}/profiles/ -k {params.ko_db_dir}/ko_list --cpu {params.num_cpus} -f detail-tsv -o {params.tmp_out} --tmp-dir {params.tmp_dir} --report-unannotated {input.AAs} > {log} 2>&1
 
         bit-filter-KOFamScan-results -i {params.tmp_out} -o {output}
 
@@ -513,13 +477,13 @@ rule call_genes:
     conda:
         "envs/prodigal.yaml"
     input:
-        assemblies_dir + "{group}-coassembly.fa"
+        config["assemblies_dir"] + "{group}-coassembly.fa"
     output:
-        AA = genes_dir + "{group}-genes.faa",
-        nt = genes_dir + "{group}-genes.fa",
-        gff = genes_dir + "{group}-genes.gff"
+        AA = config["genes_dir"] + "{group}-genes.faa",
+        nt = config["genes_dir"] + "{group}-genes.fa",
+        gff = config["genes_dir"] + "{group}-genes.gff"
     log:
-        logs_dir + "{group}-prodigal.log"
+        config["logs_dir"] + "{group}-prodigal.log"
     shell:
         """
         prodigal -q -c -p meta -a {output.AA} -d {output.nt} -f gff -o {output.gff} -i {input} > {log} 2>&1
@@ -534,9 +498,9 @@ rule summarize_assemblies:
     conda:
         "envs/bit.yaml"
     input:
-        expand(assemblies_dir + "{group}-coassembly.fa", group = group_ID_list),
+        expand(config["assemblies_dir"] + "{group}-coassembly.fa", group = group_ID_list),
     output:
-        assemblies_dir + "assembly-summaries.tsv"
+        config["assemblies_dir"] + "assembly-summaries.tsv"
     shell:
         """
         bit-summarize-assembly -o {output} {input}
@@ -554,22 +518,26 @@ rule assembly:
         R1_reads = lambda wildcards: R1_group_dict[wildcards.group],
         R2_reads = lambda wildcards: R2_group_dict[wildcards.group]
     output:
-        assemblies_dir + "{group}-coassembly.fa"
+        config["assemblies_dir"] + "{group}-coassembly.fa"
+    params:
+        assemblies_dir = config["assemblies_dir"],
+        num_threads = config["num_threads"],
+        max_mem = config["max_mem"]
     log:
-        logs_dir + "{group}-megahit.log"
+        config["logs_dir"] + "{group}-megahit.log"
     shell:
         """
         # removing output directory if exists already but rule still needs to be run (because there is no --force option to megahit i dont't think):
-        rm -rf {assemblies_dir}{wildcards.group}-megahit-out/
+        rm -rf {params.assemblies_dir}{wildcards.group}-megahit-out/
 
         R1_reads=$(echo {input.R1_reads} | tr " " ",")
         R2_reads=$(echo {input.R2_reads} | tr " " ",")
 
-        megahit -1 ${{R1_reads}} -2 ${{R2_reads}} -m {max_mem} -t {num_threads} --min-contig-len 500 -o {assemblies_dir}{wildcards.group}-megahit-out > {log} 2>&1
-        bit-rename-fasta-headers -i {assemblies_dir}{wildcards.group}-megahit-out/final.contigs.fa -w c_{wildcards.group} -o {output}
+        megahit -1 ${{R1_reads}} -2 ${{R2_reads}} -m {params.max_mem} -t {params.num_threads} --min-contig-len 500 -o {params.assemblies_dir}{wildcards.group}-megahit-out > {log} 2>&1
+        bit-rename-fasta-headers -i {params.assemblies_dir}{wildcards.group}-megahit-out/final.contigs.fa -w c_{wildcards.group} -o {output}
 
         # getting rid of assembly directory to save space
-        rm -rf {assemblies_dir}{wildcards.group}-megahit-out/
+        rm -rf {params.assemblies_dir}{wildcards.group}-megahit-out/
         """
 
 
@@ -581,14 +549,14 @@ rule filtered_fastqc:
     conda:
         "envs/qc.yaml"
     input:
-        filtered_reads_dir + "{ID}" + trimmed_R1_suffix,
-        filtered_reads_dir + "{ID}" + trimmed_R2_suffix
+        config["filtered_reads_dir"] + "{ID}" + config["trimmed_R1_suffix"],
+        config["filtered_reads_dir"] + "{ID}" + config["trimmed_R2_suffix"]
     output:
-        filtered_reads_dir + "{ID}-R1-trimmed_fastqc.zip",
-        filtered_reads_dir + "{ID}-R2-trimmed_fastqc.zip"
+        config["filtered_reads_dir"] + "{ID}-R1-trimmed_fastqc.zip",
+        config["filtered_reads_dir"] + "{ID}-R2-trimmed_fastqc.zip"
     shell:
         """
-		fastqc {input} -t {num_threads} -q
+		fastqc {input} -t 2 -q
 		"""
 
 
@@ -600,16 +568,19 @@ rule filtered_multiqc:
     conda:
         "envs/qc.yaml"
     input:
-        expand(filtered_reads_dir + "{ID}-R1-trimmed_fastqc.zip", ID = sample_ID_list),
-        expand(filtered_reads_dir + "{ID}-R2-trimmed_fastqc.zip", ID = sample_ID_list)
+        expand(config["filtered_reads_dir"] + "{ID}-R1-trimmed_fastqc.zip", ID = sample_ID_list),
+        expand(config["filtered_reads_dir"] + "{ID}-R2-trimmed_fastqc.zip", ID = sample_ID_list)
+    params:
+        fastqc_out_dir = config["fastqc_out_dir"],
+        filtered_reads_dir = config["filtered_reads_dir"]
     output:
-        fastqc_out_dir + "filtered_multiqc.html",
-        fastqc_out_dir + "filtered_multiqc_data.zip"
+        config["fastqc_out_dir"] + "filtered_multiqc.html",
+        config["fastqc_out_dir"] + "filtered_multiqc_data.zip"
     shell:
         """
-        multiqc -z -q -o {fastqc_out_dir} -n filtered_multiqc  {filtered_reads_dir} > /dev/null 2>&1
+        multiqc -z -q -o {params.fastqc_out_dir} -n filtered_multiqc  {params.filtered_reads_dir} > /dev/null 2>&1
           # removing the individual fastqc files and temp locations
-        rm -rf {filtered_reads_dir}*fastqc*
+        rm -rf {params.filtered_reads_dir}*fastqc*
         """
 
 
@@ -621,13 +592,13 @@ rule bbduk:
     conda:
         "envs/qc.yaml"
     input:
-        in1 = raw_reads_dir + "{ID}" + config["raw_R1_suffix"],
-        in2 = raw_reads_dir + "{ID}" + raw_R2_suffix
+        in1 = config["raw_reads_dir"] + "{ID}" + config["raw_R1_suffix"],
+        in2 = config["raw_reads_dir"] + "{ID}" + config["raw_R2_suffix"]
     output:
-        out1 = filtered_reads_dir + "{ID}" + trimmed_R1_suffix,
-        out2 = filtered_reads_dir + "{ID}" + trimmed_R2_suffix
+        out1 = config["filtered_reads_dir"] + "{ID}" + config["trimmed_R1_suffix"],
+        out2 = config["filtered_reads_dir"] + "{ID}" + config["trimmed_R2_suffix"]
     log:
-        logs_dir + "bbduk-{ID}.log"
+        config["logs_dir"] + "bbduk-{ID}.log"
     shell:
         """
         bbduk.sh in={input.in1} in2={input.in2} out1={output.out1} out2={output.out2} \
@@ -644,16 +615,19 @@ rule raw_multiqc:
     conda:
         "envs/qc.yaml"
     input:
-        expand(raw_reads_dir + "{ID}-R1_fastqc.zip", ID = sample_ID_list),
-        expand(raw_reads_dir + "{ID}-R2_fastqc.zip", ID = sample_ID_list)
+        expand(config["raw_reads_dir"] + "{ID}-R1_fastqc.zip", ID = sample_ID_list),
+        expand(config["raw_reads_dir"] + "{ID}-R2_fastqc.zip", ID = sample_ID_list)
+    params:
+        raw_reads_dir = config["raw_reads_dir"],
+        fastqc_out_dir = config["fastqc_out_dir"]
     output:
-        fastqc_out_dir + "raw_multiqc.html",
-        fastqc_out_dir + "raw_multiqc_data.zip"
+        config["fastqc_out_dir"] + "raw_multiqc.html",
+        config["fastqc_out_dir"] + "raw_multiqc_data.zip"
     shell:
         """
-        multiqc -z -q -o {fastqc_out_dir} -n raw_multiqc {raw_reads_dir} > /dev/null 2>&1
+        multiqc -z -q -o {params.fastqc_out_dir} -n raw_multiqc {params.raw_reads_dir} > /dev/null 2>&1
           # removing the individual fastqc files
-        rm -rf {raw_reads_dir}*fastqc*
+        rm -rf {params.raw_reads_dir}*fastqc*
         """
 
 
@@ -665,14 +639,14 @@ rule raw_fastqc:
     conda:
         "envs/qc.yaml"
     input:
-        raw_reads_dir + "{ID}" + raw_R1_suffix,
-        raw_reads_dir + "{ID}" + raw_R2_suffix        
+        config["raw_reads_dir"] + "{ID}" + config["raw_R1_suffix"],
+        config["raw_reads_dir"] + "{ID}" + config["raw_R2_suffix"]        
     output:
-        raw_reads_dir + "{ID}-R1_fastqc.zip",
-        raw_reads_dir + "{ID}-R2_fastqc.zip"
+        config["raw_reads_dir"] + "{ID}-R1_fastqc.zip",
+        config["raw_reads_dir"] + "{ID}-R2_fastqc.zip"
     shell:
         """
-		fastqc {input} -t {num_threads} -q
+		fastqc {input} -t 2 -q
 		"""
 
 
@@ -685,21 +659,22 @@ rule setup_CAT_db:
     conda:
         "envs/cat.yaml"
     output:
-        trigger = cat_db_trigger
+        cat_db_trigger = config["REF_DB_ROOT_DIR"] + config["CAT_DIR"] + "/" + config["CAT_TRIGGER_FILE"]
     params:
-        cat_db_dir = REF_DB_ROOT_DIR + config["CAT_DIR"],
-        compressed_cat = REF_DB_ROOT_DIR + "CAT_prepare_20200618.tar.gz"
+        cat_db_dir = config["REF_DB_ROOT_DIR"] + config["CAT_DIR"],
+        compressed_cat = config["REF_DB_ROOT_DIR"] + "CAT_prepare_20200618.tar.gz",
+        REF_DB_ROOT_DIR = config["REF_DB_ROOT_DIR"]
     log:
-        logs_dir + "setup-CAT-db.log"
+        config["logs_dir"] + "setup-CAT-db.log"
     shell:
         """
-        mkdir -p {REF_DB_ROOT_DIR}
+        mkdir -p {params.REF_DB_ROOT_DIR}
 
         curl -L -o {params.compressed_cat} https://tbb.bio.uu.nl/bastiaan/CAT_prepare/CAT_prepare_20201123.tar.gz > {log} 2>&1
-        tar -xvzf {params.compressed_cat} -C {REF_DB_ROOT_DIR} > {log} 2>&1
+        tar -xvzf {params.compressed_cat} -C {params.REF_DB_ROOT_DIR} > {log} 2>&1
         rm {params.compressed_cat}
 
-        touch {output.trigger}
+        touch {output.cat_db_trigger}
         """
 
 
@@ -711,13 +686,13 @@ rule setup_KoFamScan_db:
     conda:
         "envs/kofamscan.yaml"
     output:
-        trigger = kofamscan_db_trigger
+        kofamscan_db_trigger = config["REF_DB_ROOT_DIR"] + config["KOFAMSCAN_DIR"] + "/" + config["KOFAMSCAN_TRIGGER_FILE"]
     params:
-        ko_db_dir = REF_DB_ROOT_DIR + config["KOFAMSCAN_DIR"],
-        compressed_ko_list = REF_DB_ROOT_DIR + config["KOFAMSCAN_DIR"] + "/ko_list.gz",
-        compressed_profiles = REF_DB_ROOT_DIR + config["KOFAMSCAN_DIR"] + "/profiles.tar.gz"
+        ko_db_dir = config["REF_DB_ROOT_DIR"] + config["KOFAMSCAN_DIR"],
+        compressed_ko_list = config["REF_DB_ROOT_DIR"] + config["KOFAMSCAN_DIR"] + "/ko_list.gz",
+        compressed_profiles = config["REF_DB_ROOT_DIR"] + config["KOFAMSCAN_DIR"] + "/profiles.tar.gz"
     log:
-        logs_dir + "setup-kofamscan-db.log"
+        config["logs_dir"] + "setup-kofamscan-db.log"
     shell:
         """
         mkdir -p {params.ko_db_dir}
@@ -727,7 +702,7 @@ rule setup_KoFamScan_db:
         tar -xzf {params.compressed_profiles} -C {params.ko_db_dir} > {log} 2>&1
         gunzip {params.compressed_ko_list}
 
-        touch {output.trigger}
+        touch {output.kofamscan_db_trigger}
         """
 
 
@@ -739,11 +714,11 @@ rule setup_checkm_db:
     conda:
         "envs/checkm.yaml"
     output:
-        trigger = checkm_db_trigger
+        checkm_db_trigger = config["REF_DB_ROOT_DIR"] + config["CHECKM_DIR"] + "/" + config["CHECKM_TRIGGER_FILE"]
     params:
-        checkm_db_dir = REF_DB_ROOT_DIR + config["CHECKM_DIR"]
+        checkm_db_dir = config["REF_DB_ROOT_DIR"] + config["CHECKM_DIR"]
     log:
-        logs_dir + "setup-checkm-db.log"
+        config["logs_dir"] + "setup-checkm-db.log"
     shell:
         """
         mkdir -p {params.checkm_db_dir}
@@ -756,7 +731,7 @@ rule setup_checkm_db:
 
         cd - > /dev/null 2>&1
 
-        touch {output.trigger}
+        touch {output.checkm_db_trigger}
         """
 
 
@@ -768,11 +743,11 @@ rule setup_gtdbtk_db:
     conda:
         "envs/gtdb-tk.yaml"
     output:
-        trigger = gtdbtk_db_trigger
+        gtdbtk_db_trigger = config["REF_DB_ROOT_DIR"] + config["GTDB_DATA_PATH"] + "/" + config["GTDB_TRIGGER_FILE"]
     params:
-        gtdbtk_db_dir = REF_DB_ROOT_DIR + config["GTDB_DATA_PATH"]
+        gtdbtk_db_dir = config["REF_DB_ROOT_DIR"] + config["GTDB_DATA_PATH"]
     log:
-        logs_dir + "setup-gtdbtk-db.log"
+        config["logs_dir"] + "setup-gtdbtk-db.log"
     shell:
         """
         mkdir -p {params.gtdbtk_db_dir}
@@ -791,13 +766,8 @@ rule setup_gtdbtk_db:
 
         cd - > /dev/null
 
-        touch {output.trigger}
+        touch {output.gtdbtk_db_trigger}
         """
-
-
-rule clean_some:
-    shell:
-        "rm -rf {fastqc_out_dir} {filtered_reads_dir} {assemblies_dir} {genes_dir} {mapping_dir} {combined_output_dir}"
 
 
 rule clean_all:
