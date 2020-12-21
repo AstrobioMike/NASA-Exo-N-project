@@ -118,14 +118,17 @@ REF_DB_ROOT_DIR:
 ## specific database locations
 KOFAMSCAN_DIR:
     "kofamscan_db"
-    # trigger file name: 
+    # trigger file name: KO_DB_SETUP
 CAT_DIR:
     "CAT_prepare_20201123"
+    # trigger file name: CAT_DB_SETUP
 CAT_DB:
     "/2020-11-23_CAT_database"
 CAT_TAX:
     "/2020-11-23_taxonomy"
 GTDB_DATA_PATH:
     "GTDB-tk-ref-db"
+    # trigger file name: GTDBTK_DB_SETUP
 CHECKM_DIR:
     "checkm-db"
+    # trigger file name: CHECKM_DB_SETUP
