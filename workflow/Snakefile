@@ -39,9 +39,11 @@ mapping_dir = config["mapping_dir"]
 combined_output_dir = config["combined_output_dir"]
 bins_dir = config["bins_dir"]
 MAGs_dir = config["MAGs_dir"]
+logs_dir = config["logs_dir"]
 
 dirs_to_create = [fastqc_out_dir, filtered_reads_dir, assemblies_dir, genes_dir, 
-                 annotations_and_tax_dir, mapping_dir, combined_output_dir, bins_dir, MAGs_dir]
+                 annotations_and_tax_dir, mapping_dir, combined_output_dir, bins_dir,
+                 logs_dir, MAGs_dir]
 
 num_threads = config["num_threads"]
 num_cpus = config["num_cpus"]
@@ -241,7 +243,7 @@ rule run_gtdbtk_on_MAGs:
     output:
         directory(MAGs_dir + "gtdbtk-out")
     log:
-        MAGs_dir + "gtdbtk-out/gtdbtk-run.log"
+        logs_dir + "gtdbtk-run.log"
     shell:
         """
         mkdir -p {params.temp_all_MAGs_dir}
@@ -291,7 +293,7 @@ rule run_checkm_on_bins:
     output:
         bins_dir + "{group}-bins-checkm-out.tsv"
     log:
-        bins_dir + "{group}-checkm.log"
+        logs_dir + "{group}-checkm.log"
     shell:
         """
         checkm lineage_wf -f {output} --tab_table -t {num_cpus} --pplacer_threads {num_threads} -x fa {input.curr_bins_dir} {params.tmp_dir} > {log} 2>&1
@@ -313,10 +315,12 @@ rule metabat_binning:
         prefix = bins_dir + "{group}"
     output:
         depth_file = mapping_dir + "{group}-metabat-assembly-depth.tsv"
+    log:
+        logs_dir + "{group}-bam-summarize-and-metabat.log"
     shell:
         """
-        jgi_summarize_bam_contig_depths --outputDepth {output.depth_file} --percentIdentity 97 --minContigLength 1000 --minContigDepth 1.0  --referenceFasta {input.assembly} {input.bams} > /dev/null 2>&1
-        metabat2  --inFile {input.assembly} --outFile {params.prefix}/bin --abdFile {output.depth_file} -t {num_threads} > /dev/null 2>&1
+        jgi_summarize_bam_contig_depths --outputDepth {output.depth_file} --percentIdentity 97 --minContigLength 1000 --minContigDepth 1.0  --referenceFasta {input.assembly} {input.bams} > {log} 2>&1
+        metabat2  --inFile {input.assembly} --outFile {params.prefix}/bin --abdFile {output.depth_file} -t {num_threads} > {log} 2>&1
         """
 
 rule combine_all_gene_coverages_collapsed_by_KO_and_tax:
@@ -365,9 +369,11 @@ rule get_cov_and_det:
     output:
         gene_covs = mapping_dir + "{ID}-{group}-gene-coverages.tsv",
         contig_covs = mapping_dir + "{ID}-{group}-contig-coverages.tsv"
+    log:
+        logs_dir + "{ID}-{group}-pileup.log"
     shell:
         """
-        pileup.sh -in {input.bam} fastaorf={input.nt} outorf={params.gene_cov_and_det_tmp} out={params.contig_cov_and_det_tmp} > /dev/null 2>&1
+        pileup.sh -in {input.bam} fastaorf={input.nt} outorf={params.gene_cov_and_det_tmp} out={params.contig_cov_and_det_tmp} > {log} 2>&1
 
         # filtering coverages based on detection
           # genes
@@ -395,14 +401,13 @@ rule run_mapping:
         R1 = filtered_reads_dir + "{ID}" + trimmed_R1_suffix,
         R2 = filtered_reads_dir + "{ID}" + trimmed_R2_suffix
     params:
-        index = mapping_dir + "{group}-index"
+        index = mapping_dir + "{group}-index",
+        mapping_info = mapping_dir + "{ID}-{group}-mapping-info.txt"
     output:
         mapping_dir + "{ID}-{group}.bam"
-    log:
-        mapping_dir + "{ID}-{group}-mapping-info.txt"
     shell:
         """
-        bowtie2 --mm -q --threads {num_threads} -x {params.index} -1 {input.R1} -2 {input.R2} --no-unal 2> {log} | samtools view -b | samtools sort -@ {num_threads} > {output} 2> /dev/null
+        bowtie2 --mm -q --threads {num_threads} -x {params.index} -1 {input.R1} -2 {input.R2} --no-unal 2> {params.mapping_info} | samtools view -b | samtools sort -@ {num_threads} > {output} 2> /dev/null
         samtools index -@ {num_threads} {output}
         """
 
@@ -445,7 +450,7 @@ rule run_tax_classification:
         cat_db = REF_DB_ROOT_DIR + config["CAT_DIR"] + config["CAT_DB"],
         cat_tax = REF_DB_ROOT_DIR + config["CAT_DIR"] + config["CAT_TAX"]
     log:
-        annotations_and_tax_dir + "{group}-CAT.log"
+        logs_dir + "{group}-CAT.log"
     shell:
         """
         CAT contigs -d {params.cat_db} -t {params.cat_tax} -n {num_cpus} -r 3 --top 4 --I_know_what_Im_doing -c {input.assembly} -p {input.AA} -o {params.tmp_out_prefix} --force > {log} 2>&1
@@ -470,7 +475,6 @@ rule run_tax_classification:
         sed 's/not classified/NA/g' | sed 's/superkingdom/domain/' | sed 's/: [0-9\.]*//g' | sed 's/^# contig/contig_ID/' | \
         sed 's/lineage/taxid/' | sed 's/\*//g' > {output.contig_tax_out}
 
-#        rm -rf {annotations_and_tax_dir}{wildcards.group}*tmp*
         rm -rf {params}
         """
 
@@ -491,9 +495,11 @@ rule run_KO_annotation:
         ko_db_dir = REF_DB_ROOT_DIR + config["KOFAMSCAN_DIR"],
         tmp_out = annotations_and_tax_dir + "{group}-KO-tab.tmp",
         tmp_dir = annotations_and_tax_dir + "{group}-tmp-KO-dir"
+    log:
+        logs_dir + "{group}-kofamscan.log"
     shell:
         """
-        exec_annotation -p {params.ko_db_dir}/profiles/ -k {params.ko_db_dir}/ko_list --cpu {num_cpus} -f detail-tsv -o {params.tmp_out} --tmp-dir {params.tmp_dir} --report-unannotated {input.AAs}
+        exec_annotation -p {params.ko_db_dir}/profiles/ -k {params.ko_db_dir}/ko_list --cpu {num_cpus} -f detail-tsv -o {params.tmp_out} --tmp-dir {params.tmp_dir} --report-unannotated {input.AAs} > {log} 2>&1
 
         bit-filter-KOFamScan-results -i {params.tmp_out} -o {output}
 
@@ -514,9 +520,11 @@ rule call_genes:
         AA = genes_dir + "{group}-genes.faa",
         nt = genes_dir + "{group}-genes.fa",
         gff = genes_dir + "{group}-genes.gff"
+    log:
+        logs_dir + "{group}-prodigal.log"
     shell:
         """
-        prodigal -q -c -p meta -a {output.AA} -d {output.nt} -f gff -o {output.gff} -i {input}
+        prodigal -q -c -p meta -a {output.AA} -d {output.nt} -f gff -o {output.gff} -i {input} > {log} 2>&1
         """
 
 
@@ -550,7 +558,7 @@ rule assembly:
     output:
         assemblies_dir + "{group}-coassembly.fa"
     log:
-        assemblies_dir + "{group}-coassembly.log"
+        logs_dir + "{group}-megahit.log"
     shell:
         """
         # removing output directory if exists already but rule still needs to be run (because there is no --force option to megahit i dont't think):
@@ -620,7 +628,7 @@ rule bbduk:
         out1 = filtered_reads_dir + "{ID}" + trimmed_R1_suffix,
         out2 = filtered_reads_dir + "{ID}" + trimmed_R2_suffix
     log:
-        filtered_reads_dir + "bbduk-{ID}.log"
+        logs_dir + "bbduk-{ID}.log"
     shell:
         """
         bbduk.sh in={input.in1} in2={input.in2} out1={output.out1} out2={output.out2} \
@@ -681,12 +689,14 @@ rule setup_CAT_db:
     params:
         cat_db_dir = REF_DB_ROOT_DIR + config["CAT_DIR"],
         compressed_cat = REF_DB_ROOT_DIR + "CAT_prepare_20200618.tar.gz"
+    log:
+        logs_dir + "setup-CAT-db.log"
     shell:
         """
         mkdir -p {REF_DB_ROOT_DIR}
 
-        curl -L -o {params.compressed_cat} https://tbb.bio.uu.nl/bastiaan/CAT_prepare/CAT_prepare_20201123.tar.gz > /dev/null 2>&1
-        tar -xvzf {params.compressed_cat} -C {REF_DB_ROOT_DIR} > /dev/null 2>&1
+        curl -L -o {params.compressed_cat} https://tbb.bio.uu.nl/bastiaan/CAT_prepare/CAT_prepare_20201123.tar.gz > {log} 2>&1
+        tar -xvzf {params.compressed_cat} -C {REF_DB_ROOT_DIR} > {log} 2>&1
         rm {params.compressed_cat}
 
         touch {output.trigger}
@@ -706,13 +716,15 @@ rule setup_KoFamScan_db:
         ko_db_dir = REF_DB_ROOT_DIR + config["KOFAMSCAN_DIR"],
         compressed_ko_list = REF_DB_ROOT_DIR + config["KOFAMSCAN_DIR"] + "/ko_list.gz",
         compressed_profiles = REF_DB_ROOT_DIR + config["KOFAMSCAN_DIR"] + "/profiles.tar.gz"
+    log:
+        logs_dir + "setup-kofamscan-db.log"
     shell:
         """
         mkdir -p {params.ko_db_dir}
 
-        curl -L -o {params.compressed_ko_list} ftp://ftp.genome.jp/pub/db/kofam/ko_list.gz > /dev/null 2>&1
-        curl -L -o {params.compressed_profiles} ftp://ftp.genome.jp/pub/db/kofam/profiles.tar.gz > /dev/null 2>&1
-        tar -xzf {params.compressed_profiles} -C {params.ko_db_dir} > /dev/null 2>&1
+        curl -L -o {params.compressed_ko_list} ftp://ftp.genome.jp/pub/db/kofam/ko_list.gz > {log} 2>&1
+        curl -L -o {params.compressed_profiles} ftp://ftp.genome.jp/pub/db/kofam/profiles.tar.gz > {log} 2>&1
+        tar -xzf {params.compressed_profiles} -C {params.ko_db_dir} > {log} 2>&1
         gunzip {params.compressed_ko_list}
 
         touch {output.trigger}
@@ -730,15 +742,17 @@ rule setup_checkm_db:
         trigger = checkm_db_trigger
     params:
         checkm_db_dir = REF_DB_ROOT_DIR + config["CHECKM_DIR"]
+    log:
+        logs_dir + "setup-checkm-db.log"
     shell:
         """
         mkdir -p {params.checkm_db_dir}
         cd {params.checkm_db_dir}
 
-        curl -LO https://data.ace.uq.edu.au/public/CheckM_databases/checkm_data_2015_01_16.tar.gz > /dev/null 2>&1
-        tar -xzvf checkm_data_2015_01_16.tar.gz > /dev/null 2>&1
+        curl -LO https://data.ace.uq.edu.au/public/CheckM_databases/checkm_data_2015_01_16.tar.gz > {log} 2>&1
+        tar -xzvf checkm_data_2015_01_16.tar.gz > {log} 2>&1
 
-        checkm data setRoot $PWD > /dev/null 2>&1
+        checkm data setRoot $PWD > {log} 2>&1
 
         cd - > /dev/null 2>&1
 
@@ -757,23 +771,25 @@ rule setup_gtdbtk_db:
         trigger = gtdbtk_db_trigger
     params:
         gtdbtk_db_dir = REF_DB_ROOT_DIR + config["GTDB_DATA_PATH"]
+    log:
+        logs_dir + "setup-gtdbtk-db.log"
     shell:
         """
         mkdir -p {params.gtdbtk_db_dir}
-        cd {params.gtdbtk_db_dir}
+        cd {params.gtdbtk_db_dir} 
 
         # adding wanted location to this conda env PATH (gtdb-tk looks in the GTDBTK_DATA_PATH variable),
             # so will be set when the conda environment is started from now on
         mkdir -p ${{CONDA_PREFIX}}/etc/conda/activate.d/
         echo 'export GTDBTK_DATA_PATH={params.gtdbtk_db_dir}' >> ${{CONDA_PREFIX}}/etc/conda/activate.d/set_env_vars.sh
 
-        # but still needs to be set for this particular session that is downloading the db
+        # but still needs to be set for this particular session that is downloading and setting up the db
         GTDBTK_DATA_PATH={params.gtdbtk_db_dir}
 
         # now downloading
-        download-db.sh > /dev/null 2>&1
+        download-db.sh > {log} 2>&1
 
-        cd - > /dev/null 2>&1
+        cd - > /dev/null
 
         touch {output.trigger}
         """
