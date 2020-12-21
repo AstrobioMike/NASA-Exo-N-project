@@ -23,7 +23,7 @@ raw_R1_suffix:
 raw_R2_suffix:
     "-R2.fq.gz"
 
-## raw reads directory (can be relative to workflow directory)
+## raw reads directory (can be relative to workflow directory, or needs to be full path)
 raw_reads_dir:
     "../raw-reads/"
 
