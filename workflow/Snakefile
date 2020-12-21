@@ -6,6 +6,7 @@
 import os
 import pandas as pd
 
+
 ########################################
 ############# General Info #############
 ########################################
@@ -15,14 +16,13 @@ See the corresponding 'config.yaml' file for general use information.
 Variables that may need to be adjusted should be changed there, not here.
 """
 
+
 ###############################################################################
 ######## Pulling variables from config file for easier calling in here ########
 ###############################################################################
 configfile: "config.yaml"
 
-sample_IDs_file = config["sample_IDs_file"]
-group_IDs_file = config["group_IDs_file"]
-groups_map_file = config["groups_map_file"]
+sample_info_file = config["sample_info_file"]
 
 raw_R1_suffix = config["raw_R1_suffix"]
 raw_R2_suffix = config["raw_R2_suffix"]
@@ -50,6 +50,7 @@ num_cpus = config["num_cpus"]
 gtdb_tk_num_cpus = config["gtdb_tk_num_cpus"]
 max_mem = config["max_mem"]
 
+
 ###########################################
 ########### Ref database stuff ############
 ###########################################
@@ -63,28 +64,27 @@ checkm_db_trigger = REF_DB_ROOT_DIR + config["CHECKM_DIR"] + "/CHECKM_DB_SETUP"
 gtdbtk_db_trigger = REF_DB_ROOT_DIR + config["GTDB_DATA_PATH"] + "/GTDBTK_DB_SETUP"
 
 
+###############################################################
+###### Reading info file and parsing into needed objects ######
+###############################################################
 
-#############################################
-###### Reading info files into objects ######
-#############################################
+sample_and_group_info = pd.read_csv(sample_info_file, sep="\t", names = ["sample", "group"])
 
-sample_ID_list = [line.strip() for line in open(sample_IDs_file)]
+sample_ID_list = pd.unique(sample_and_group_info["sample"]).tolist()
 
-group_ID_list = [line.strip() for line in open(group_IDs_file)]
-
-group_map_tab = pd.read_csv(groups_map_file, sep="\t", names = ["sample", "group"])
+group_ID_list = pd.unique(sample_and_group_info["group"]).tolist()
 
 
-################################################################################
-#### Helper functions and setting up variables to handle co-assembly groups ####
-################################################################################
+###################################################################################
+#### Helper functions and setting up variables to handle co-assembly of groups ####
+###################################################################################
 
-def group_R1_reads(target_group, group_map_tab = group_map_tab):
-    target_samples_list = list(group_map_tab[group_map_tab.group.eq(target_group)]['sample'].values)
+def group_R1_reads(target_group, sample_and_group_info = sample_and_group_info):
+    target_samples_list = list(sample_and_group_info[sample_and_group_info.group.eq(target_group)]['sample'].values)
     return(expand(filtered_reads_dir + "{ID}" + trimmed_R1_suffix, ID = target_samples_list))
 
-def group_R2_reads(target_group, group_map_tab = group_map_tab):
-    target_samples_list = list(group_map_tab[group_map_tab.group.eq(target_group)]['sample'].values)
+def group_R2_reads(target_group, sample_and_group_info = sample_and_group_info):
+    target_samples_list = list(sample_and_group_info[sample_and_group_info.group.eq(target_group)]['sample'].values)
     return(expand(filtered_reads_dir + "{ID}" + trimmed_R2_suffix, ID = target_samples_list))
 
 R1_group_dict, R2_group_dict = {}, {}
@@ -94,8 +94,8 @@ for group in group_ID_list:
 
 
 group_sample_bams_list, group_bam_dict = [], {}
-def group_sample_bams(target_group, group_map_tab = group_map_tab):
-    target_samples_list = list(group_map_tab[group_map_tab.group.eq(target_group)]['sample'].values)
+def group_sample_bams(target_group, sample_and_group_info = sample_and_group_info):
+    target_samples_list = list(sample_and_group_info[sample_and_group_info.group.eq(target_group)]['sample'].values)
     return(expand(mapping_dir + "{ID}-" + group + ".bam", ID = target_samples_list))
 
 for group in group_ID_list:
@@ -104,8 +104,8 @@ for group in group_ID_list:
 
 
 group_sample_coverage_files_list, group_cov_dict = [], {}
-def group_sample_coverages_files(target_group, group_map_tab = group_map_tab):
-    target_samples_list = list(group_map_tab[group_map_tab.group.eq(target_group)]['sample'].values)
+def group_sample_coverages_files(target_group, sample_and_group_info = sample_and_group_info):
+    target_samples_list = list(sample_and_group_info[sample_and_group_info.group.eq(target_group)]['sample'].values)
     return(expand(mapping_dir + "{ID}-" + group + "-gene-coverages.tsv", ID = target_samples_list))
 
 for group in group_ID_list:
@@ -621,7 +621,7 @@ rule bbduk:
     conda:
         "envs/qc.yaml"
     input:
-        in1 = raw_reads_dir + "{ID}" + raw_R1_suffix,
+        in1 = raw_reads_dir + "{ID}" + config["raw_R1_suffix"],
         in2 = raw_reads_dir + "{ID}" + raw_R2_suffix
     output:
         out1 = filtered_reads_dir + "{ID}" + trimmed_R1_suffix,

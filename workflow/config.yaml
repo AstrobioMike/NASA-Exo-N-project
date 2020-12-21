@@ -3,32 +3,17 @@
 #############################################################
 
 #############################################################
-##### These first 6 need to match what is on our system #####
+##### These first 4 need to match what is on our system #####
 #############################################################
 
-## path to single column file holding unique portion of sample names, e.g.:
-        # Sample-1
-        # Sample-2
-
-sample_IDs_file:
-    "test-unique-sample-IDs.txt"
-
-## path to single column file holding all groups of samples (for co-assembly if appropriate), e.g.:
-        # Group_1
-        # Group_2
-
-group_IDs_file:
-    "groups.txt"
-
-## path to 2-column, tab-delimited file specifying what group each sample belongs to, e.g.:
+## path to 2-column, tab-delimited file specifying samples and the groups they belong to, e.g.:
         # Sample-1  Group_1
         # Sample-2  Group_1
         # Sample-3  Group_2
         # Sample-4  Group_2
 
-groups_map_file:
-    "test-sample-groups-map.tsv"
-
+sample_info_file:
+    "sample-and-group-info.tsv"
 
 ## raw read suffixes (region following the unique part of the sample names)
   # e.g. for Sample-1-R1.fq.gz and Sample-1-R2.fq.gz
