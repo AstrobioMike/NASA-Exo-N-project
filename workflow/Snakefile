@@ -261,7 +261,7 @@ rule filtering_checkm_results_and_copying_MAGs:
         MAGs_dir + "{group}-MAGs-checkm-out.tsv"
     shell:
         """
-        mkdir {MAGs_dir}{wildcards.group}/
+        mkdir -p {MAGs_dir}{wildcards.group}/
 
         cat <( head -n 1 {input} ) <( awk -F $'\\t' ' $12 >= 90 && $13 <= 10 && $14 == 0 ' {input} ) > {wildcards.group}-MAG-info.tmp
 
@@ -442,13 +442,13 @@ rule run_tax_classification:
         tmp_out_prefix = annotations_and_tax_dir + "{group}-tax-out.tmp",
         tmp_genes = annotations_and_tax_dir + "{group}-gene-tax.tmp",
         tmp_contigs = annotations_and_tax_dir + "{group}-contig-tax.tmp",
-        cat_db = REF_DB_ROOT_DIR + config["CAT_DIR"] + "/2020-06-18_CAT_database/",
-        cat_tax = REF_DB_ROOT_DIR + config["CAT_DIR"] + "/2020-06-18_taxonomy/"
+        cat_db = REF_DB_ROOT_DIR + config["CAT_DIR"] + config["CAT_DB"],
+        cat_tax = REF_DB_ROOT_DIR + config["CAT_DIR"] + config["CAT_TAX"]
     log:
         annotations_and_tax_dir + "{group}-CAT.log"
     shell:
         """
-        CAT contigs -d {params.cat_db} -t {params.cat_tax} -n {num_cpus} -r 3 --top 4 --I_know_what_Im_doing -c {input.assembly} -p {input.AA} -o {params.tmp_out_prefix} > {log} 2>&1
+        CAT contigs -d {params.cat_db} -t {params.cat_tax} -n {num_cpus} -r 3 --top 4 --I_know_what_Im_doing -c {input.assembly} -p {input.AA} -o {params.tmp_out_prefix} --force > {log} 2>&1
 
         # adding names to gene classifications
         CAT add_names -i {params.tmp_out_prefix}.ORF2LCA.txt -o {params.tmp_genes} -t {params.cat_tax} --only_official > {log} 2>&1

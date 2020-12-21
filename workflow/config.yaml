@@ -119,7 +119,11 @@ KOFAMSCAN_DIR:
     "kofamscan_db"
     # trigger file name: 
 CAT_DIR:
-    "CAT_prepare_20200618"
+    "CAT_prepare_20201123"
+CAT_DB:
+    "/2020-11-23_CAT_database"
+CAT_TAX:
+    "/2020-11-23_taxonomy"
 GTDB_DATA_PATH:
     "GTDB-tk-ref-db"
 CHECKM_DIR:
