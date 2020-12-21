@@ -184,9 +184,7 @@ rule generate_MAGs_overview_table:
         for MAG in $(cut -f 1 {input.assembly_summaries} | tail -n +2)
         do
 
-            MAG_base=$(echo ${{MAG}} | cut -f 2- -d "-")
-
-            grep -w -m 1 "^${{MAG_base}}" {input.checkm_results} | cut -f 12,13 >> {params.checkm_tmp}
+            grep -w -m 1 "^${{MAG}}" {input.checkm_results} | cut -f 12,13 >> {params.checkm_tmp}
 
             # note: below won't work with darwin sed due to tab character
             grep -w "^${{MAG}}" {params.gtdb_results} | cut -f 2 | sed 's/^.__//' | sed 's/;.__/\\t/g' | awk -F $'\\t' ' BEGIN {{ OFS=FS }} {{ for (i=1; i<=NF; i++) if ( $i ~/^ *$/) $i = "NA" }}; 1 ' >> {params.gtdb_tmp}
