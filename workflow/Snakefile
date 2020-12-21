@@ -572,6 +572,7 @@ rule assembly:
         rm -rf {assemblies_dir}{wildcards.group}-megahit-out/
         """
 
+
 rule filtered_fastqc:
     """
     This rule runs fastqc on all trimmed/filtered input fastq files.
@@ -673,6 +674,7 @@ rule raw_fastqc:
         """
 		fastqc {input} -t {num_threads} -q
 		"""
+
 
 ### database checking and setup rules ###
 rule setup_CAT_db:
