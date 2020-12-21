@@ -473,7 +473,7 @@ rule run_tax_classification:
         sed 's/not classified/NA/g' | sed 's/superkingdom/domain/' | sed 's/: [0-9\.]*//g' | sed 's/^# contig/contig_ID/' | \
         sed 's/lineage/taxid/' | sed 's/\*//g' > {output.contig_tax_out}
 
-        rm -rf {params}
+        rm -rf {params.tmp_out_prefix} {params.tmp_genes} {params.tmp_contigs}
         """
 
 
