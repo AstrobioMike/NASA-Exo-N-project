@@ -19,21 +19,21 @@ sample_info_file:
   # e.g. for Sample-1-R1.fq.gz and Sample-1-R2.fq.gz
 
 raw_R1_suffix:
-    "_R1.fq.gz"
+    "-R1.fq.gz"
 raw_R2_suffix:
-    "_R2.fq.gz"
+    "-R2.fq.gz"
 
 ## raw fastqc suffixes
   # e.g. with above, fastqc will remove the ".fq.gz" and append "_fastqc.zip" in its place)
 
 raw_R1_fastqc_suffix:
-    "_R1_fastqc.zip"
+    "-R1_fastqc.zip"
 raw_R2_fastqc_suffix:
-    "_R2_fastqc.zip"
+    "-R2_fastqc.zip"
 
 ## raw reads directory (can be relative to workflow directory, or needs to be full path)
 raw_reads_dir:
-    "../../../usftp21.novogene.com/raw_data/"
+    "../raw-reads/"
 
 ######################################################################
 ##### The rest only need to be altered if we want to change them #####
