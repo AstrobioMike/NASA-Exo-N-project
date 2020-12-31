@@ -19,13 +19,13 @@ sample_info_file:
   # e.g. for Sample-1-R1.fq.gz and Sample-1-R2.fq.gz
 
 raw_R1_suffix:
-    "-R1.fq.gz"
+    "_R1.fq.gz"
 raw_R2_suffix:
-    "-R2.fq.gz"
+    "_R2.fq.gz"
 
 ## raw reads directory (can be relative to workflow directory, or needs to be full path)
 raw_reads_dir:
-    "../raw-reads/"
+    "../../../usftp21.novogene.com/raw_data/"
 
 ######################################################################
 ##### The rest only need to be altered if we want to change them #####
@@ -43,7 +43,7 @@ num_cpus:
 
 ## number of CPUs to use for gtdb-tk (only 1 will run at a time, but the pplacer step can be memory intensive with many cpus)
 gtdb_tk_num_cpus:
-    2
+    5
 
 ## maximum memory allowed passed to megahit assembler
     # can be set either by proportion of available on system, e.g. 0.5
