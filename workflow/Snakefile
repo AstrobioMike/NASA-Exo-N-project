@@ -552,8 +552,8 @@ rule filtered_fastqc:
         config["filtered_reads_dir"] + "{ID}" + config["trimmed_R1_suffix"],
         config["filtered_reads_dir"] + "{ID}" + config["trimmed_R2_suffix"]
     output:
-        config["filtered_reads_dir"] + "{ID}-R1-trimmed_fastqc.zip",
-        config["filtered_reads_dir"] + "{ID}-R2-trimmed_fastqc.zip"
+        config["filtered_reads_dir"] + "{ID}" + config["trimmed_R1_fastqc_suffix"],
+        config["filtered_reads_dir"] + "{ID}" + config["trimmed_R2_fastqc_suffix"]
     shell:
         """
 		fastqc {input} -t 2 -q
@@ -568,8 +568,8 @@ rule filtered_multiqc:
     conda:
         "envs/qc.yaml"
     input:
-        expand(config["filtered_reads_dir"] + "{ID}-R1-trimmed_fastqc.zip", ID = sample_ID_list),
-        expand(config["filtered_reads_dir"] + "{ID}-R2-trimmed_fastqc.zip", ID = sample_ID_list)
+        expand(config["filtered_reads_dir"] + "{ID}" + config["trimmed_R1_fastqc_suffix"], ID = sample_ID_list),
+        expand(config["filtered_reads_dir"] + "{ID}" + config["trimmed_R2_fastqc_suffix"], ID = sample_ID_list)
     params:
         fastqc_out_dir = config["fastqc_out_dir"],
         filtered_reads_dir = config["filtered_reads_dir"]
@@ -615,8 +615,8 @@ rule raw_multiqc:
     conda:
         "envs/qc.yaml"
     input:
-        expand(config["raw_reads_dir"] + "{ID}-R1_fastqc.zip", ID = sample_ID_list),
-        expand(config["raw_reads_dir"] + "{ID}-R2_fastqc.zip", ID = sample_ID_list)
+        expand(config["raw_reads_dir"] + "{ID}" + config["raw_R1_fastqc_suffix"], ID = sample_ID_list),
+        expand(config["raw_reads_dir"] + "{ID}" + config["raw_R2_fastqc_suffix"], ID = sample_ID_list)
     params:
         raw_reads_dir = config["raw_reads_dir"],
         fastqc_out_dir = config["fastqc_out_dir"]
@@ -642,8 +642,8 @@ rule raw_fastqc:
         config["raw_reads_dir"] + "{ID}" + config["raw_R1_suffix"],
         config["raw_reads_dir"] + "{ID}" + config["raw_R2_suffix"]        
     output:
-        config["raw_reads_dir"] + "{ID}-R1_fastqc.zip",
-        config["raw_reads_dir"] + "{ID}-R2_fastqc.zip"
+        config["raw_reads_dir"] + "{ID}" + config["raw_R1_fastqc_suffix"],
+        config["raw_reads_dir"] + "{ID}" + config["raw_R2_fastqc_suffix"]
     shell:
         """
 		fastqc {input} -t 2 -q
