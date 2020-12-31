@@ -3,7 +3,7 @@
 #############################################################
 
 #############################################################
-##### These first 4 need to match what is on our system #####
+##### These first 6 need to match what is on our system #####
 #############################################################
 
 ## path to 2-column, tab-delimited file specifying samples and the groups they belong to, e.g.:
@@ -22,6 +22,14 @@ raw_R1_suffix:
     "_R1.fq.gz"
 raw_R2_suffix:
     "_R2.fq.gz"
+
+## raw fastqc suffixes
+  # e.g. with above, fastqc will remove the ".fq.gz" and append "_fastqc.zip" in its place)
+
+raw_R1_fastqc_suffix:
+    "_R1_fastqc.zip"
+raw_R2_fastqc_suffix:
+    "_R2_fastqc.zip"
 
 ## raw reads directory (can be relative to workflow directory, or needs to be full path)
 raw_reads_dir:
@@ -51,11 +59,16 @@ gtdb_tk_num_cpus:
 max_mem:
     0.5
 
-## quality trimmed/filtered read suffixes
+## quality trimmed/filtered suffixes
 trimmed_R1_suffix:
     "-R1-trimmed.fq.gz"
 trimmed_R2_suffix:
     "-R2-trimmed.fq.gz"
+
+trimmed_R1_fastqc_suffix:
+    "-R1-trimmed_fastqc.zip"
+trimmed_R2_fastqc_suffix:
+    "-R2-trimmed_fastqc.zip"
 
 ## output directories (all relative to processing directory, will be created)
 fastqc_out_dir:
