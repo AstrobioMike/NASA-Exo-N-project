@@ -1,9 +1,0 @@
-# example snakemake call
-
-snakemake --use-conda --conda-prefix ${CONDA_PREFIX}/envs -j 8 -p
-
-    # --use-conda tells it to create the specified conda environments for each rule
-    # --conda-prefix let's us point to where we want the environments created/used from
-        # Without this setting, it will re-create them in the current snakemake directory each
-        # time we run the workflow in a new location/on a new dataset. With this set, it will re-use
-        # the conda environments we've made already.
