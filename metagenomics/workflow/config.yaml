@@ -19,21 +19,21 @@ sample_info_file:
   # e.g. for Sample-1-R1.fq.gz and Sample-1-R2.fq.gz
 
 raw_R1_suffix:
-    "-R1.fq.gz"
+    "_R1.fq.gz"
 raw_R2_suffix:
-    "-R2.fq.gz"
+    "_R2.fq.gz"
 
 ## raw fastqc suffixes
   # e.g. with above, fastqc will remove the ".fq.gz" and append "_fastqc.zip" in its place)
 
 raw_R1_fastqc_suffix:
-    "-R1_fastqc.zip"
+    "_R1_fastqc.zip"
 raw_R2_fastqc_suffix:
-    "-R2_fastqc.zip"
+    "_R2_fastqc.zip"
 
 ## raw reads directory (can be relative to workflow directory, or needs to be full path)
 raw_reads_dir:
-    "../raw-reads/"
+    "../../../usftp21.novogene.com/raw_data/"
 
 ######################################################################
 ##### The rest only need to be altered if we want to change them #####
@@ -119,13 +119,13 @@ KOFAMSCAN_DIR:
 KOFAMSCAN_TRIGGER_FILE:
     "KO_DB_SETUP"
 CAT_DIR:
-    "CAT_prepare_20201123"
+    "CAT_prepare_20210107"
 CAT_TRIGGER_FILE:
     "CAT_DB_SETUP"
 CAT_DB:
-    "/2020-11-23_CAT_database"
+    "/2021-01-07_CAT_database"
 CAT_TAX:
-    "/2020-11-23_taxonomy"
+    "/2021-01-07_taxonomy"
 CHECKM_DIR:
     "checkm-db"
 CHECKM_TRIGGER_FILE:

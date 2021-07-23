@@ -662,7 +662,7 @@ rule setup_CAT_db:
         cat_db_trigger = config["REF_DB_ROOT_DIR"] + config["CAT_DIR"] + "/" + config["CAT_TRIGGER_FILE"]
     params:
         cat_db_dir = config["REF_DB_ROOT_DIR"] + config["CAT_DIR"],
-        compressed_cat = config["REF_DB_ROOT_DIR"] + "CAT_prepare_20200618.tar.gz",
+        compressed_cat = config["REF_DB_ROOT_DIR"] + "CAT_prepare_20210107.tar.gz",
         REF_DB_ROOT_DIR = config["REF_DB_ROOT_DIR"]
     log:
         config["logs_dir"] + "setup-CAT-db.log"
@@ -670,7 +670,7 @@ rule setup_CAT_db:
         """
         mkdir -p {params.REF_DB_ROOT_DIR}
 
-        curl -L -o {params.compressed_cat} https://tbb.bio.uu.nl/bastiaan/CAT_prepare/CAT_prepare_20201123.tar.gz > {log} 2>&1
+        curl -L -o {params.compressed_cat} https://tbb.bio.uu.nl/bastiaan/CAT_prepare/CAT_prepare_20210107.tar.gz > {log} 2>&1
         tar -xvzf {params.compressed_cat} -C {params.REF_DB_ROOT_DIR} > {log} 2>&1
         rm {params.compressed_cat}
 
