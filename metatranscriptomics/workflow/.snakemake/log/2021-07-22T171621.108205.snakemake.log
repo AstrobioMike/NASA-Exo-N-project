@@ -1,0 +1,297 @@
+Building DAG of jobs...
+Creating conda environment envs/mapping.yaml...
+Downloading and installing remote packages.
+Environment for envs/mapping.yaml created (location: ../../../../../../home/mdlee4/miniconda3/envs/genelab-utils/envs/5a309e94df300f382f6d4207f7f0a57c)
+Using shell: /bin/bash
+Provided cores: 8
+Rules claiming more threads will be scaled down.
+Job stats:
+job                                                   count    min threads    max threads
+--------------------------------------------------  -------  -------------  -------------
+all                                                       1              1              1
+build_bowtie2_index                                       2              1              1
+combine_all_gene_coverages_collapsed_by_KO_and_tax        1              1              1
+combine_group_gene_coverage_annots_and_tax                2              1              1
+get_cov_and_det                                           4              1              1
+run_KO_annotation                                         1              1              1
+run_mapping                                               4              1              1
+run_tax_classification                                    1              1              1
+total                                                    16              1              1
+
+Select jobs to execute...
+
+[Thu Jul 22 17:16:51 2021]
+rule run_tax_classification:
+    input: ../assemblies/T1_F2_N-coassembly.fa, ../predicted-genes/T1_F2_N-genes.faa, /home/mdlee4/ref-dbs/CAT_prepare_20201123/CAT_DB_SETUP
+    output: ../annotations-and-taxonomy/T1_F2_N-gene-tax.tsv, ../annotations-and-taxonomy/T1_F2_N-transcript-tax.tsv
+    log: logs/T1_F2_N-CAT.log
+    jobid: 27
+    wildcards: group=T1_F2_N
+    resources: tmpdir=/tmp
+
+
+        CAT contigs -d /home/mdlee4/ref-dbs/CAT_prepare_20201123/2020-11-23_CAT_database -t /home/mdlee4/ref-dbs/CAT_prepare_20201123/2020-11-23_taxonomy -n 10 -r 3 --top 4 --I_know_what_Im_doing -c ../assemblies/T1_F2_N-coassembly.fa -p ../predicted-genes/T1_F2_N-genes.faa -o ../annotations-and-taxonomy/T1_F2_N-tax-out.tmp --force > logs/T1_F2_N-CAT.log 2>&1
+
+        # adding names to gene classifications
+        CAT add_names -i ../annotations-and-taxonomy/T1_F2_N-tax-out.tmp.ORF2LCA.txt -o ../annotations-and-taxonomy/T1_F2_N-gene-tax.tmp -t /home/mdlee4/ref-dbs/CAT_prepare_20201123/2020-11-23_taxonomy --only_official > logs/T1_F2_N-CAT.log 2>&1
+
+        # formatting gene classifications
+        awk -F $'	' ' BEGIN { OFS=FS } { if ( $2 == "lineage" ) { print $1,$2,$4,$5,$6,$7,$8,$9,$10 }         else if ( $2 == "ORF has no hit to database" || $2 ~ /^no taxid found/ ) { print $1,"NA","NA","NA","NA","NA","NA","NA","NA" }         else { n=split($2,lineage,";"); print $1,lineage[n],$4,$5,$6,$7,$8,$9,$10 } } ' ../annotations-and-taxonomy/T1_F2_N-gene-tax.tmp |         sed 's/not classified/NA/g' | sed 's/superkingdom/domain/' | sed 's/^# ORF/gene_ID/' | sed 's/lineage/taxid/' |         sed 's/\*//g' > ../annotations-and-taxonomy/T1_F2_N-gene-tax.tsv
+
+        # adding names to contig classifications
+        CAT add_names -i ../annotations-and-taxonomy/T1_F2_N-tax-out.tmp.contig2classification.txt -o ../annotations-and-taxonomy/T1_F2_N-transcript-tax.tmp -t /home/mdlee4/ref-dbs/CAT_prepare_20201123/2020-11-23_taxonomy --only_official > logs/T1_F2_N-CAT.log 2>&1
+
+        # formatting contig classifications
+        awk -F $'	' ' BEGIN { OFS=FS } { if ( $2 == "classification" ) { print $1,$4,$6,$7,$8,$9,$10,$11,$12 }         else if ( $2 == "unclassified" ) { print $1,"NA","NA","NA","NA","NA","NA","NA","NA" }         else { n=split($4,lineage,";"); print $1,lineage[n],$6,$7,$8,$9,$10,$11,$12 } } ' ../annotations-and-taxonomy/T1_F2_N-transcript-tax.tmp |         sed 's/not classified/NA/g' | sed 's/superkingdom/domain/' | sed 's/: [0-9\.]*//g' | sed 's/^# contig/contig_ID/' |         sed 's/lineage/taxid/' | sed 's/\*//g' > ../annotations-and-taxonomy/T1_F2_N-transcript-tax.tsv
+
+        rm -rf ../annotations-and-taxonomy/T1_F2_N-tax-out.tmp ../annotations-and-taxonomy/T1_F2_N-gene-tax.tmp ../annotations-and-taxonomy/T1_F2_N-transcript-tax.tmp
+        
+Activating conda environment: /home/mdlee4/miniconda3/envs/genelab-utils/envs/14691dd32061cca186a5c0190ff0e259
+
+[Thu Jul 22 17:16:52 2021]
+rule build_bowtie2_index:
+    input: ../assemblies/T1_F1_P-coassembly.fa
+    output: logs/T1_F1_P-bowtie2-build.log
+    jobid: 5
+    wildcards: group=T1_F1_P
+    resources: tmpdir=/tmp
+
+
+        bowtie2-build ../assemblies/T1_F1_P-coassembly.fa ../read-mapping/T1_F1_P-index > logs/T1_F1_P-bowtie2-build.log 2>&1
+        
+Activating conda environment: /home/mdlee4/miniconda3/envs/genelab-utils/envs/5a309e94df300f382f6d4207f7f0a57c
+
+[Thu Jul 22 17:16:52 2021]
+rule build_bowtie2_index:
+    input: ../assemblies/T1_F2_N-coassembly.fa
+    output: logs/T1_F2_N-bowtie2-build.log
+    jobid: 19
+    wildcards: group=T1_F2_N
+    resources: tmpdir=/tmp
+
+
+        bowtie2-build ../assemblies/T1_F2_N-coassembly.fa ../read-mapping/T1_F2_N-index > logs/T1_F2_N-bowtie2-build.log 2>&1
+        
+Activating conda environment: /home/mdlee4/miniconda3/envs/genelab-utils/envs/5a309e94df300f382f6d4207f7f0a57c
+
+[Thu Jul 22 17:16:53 2021]
+rule run_KO_annotation:
+    input: ../predicted-genes/T1_F2_N-genes.faa, /home/mdlee4/ref-dbs/kofamscan_db/KO_DB_SETUP
+    output: ../annotations-and-taxonomy/T1_F2_N-annotations.tsv
+    log: logs/T1_F2_N-kofamscan.log
+    jobid: 26
+    wildcards: group=T1_F2_N
+    resources: tmpdir=/tmp
+
+
+        exec_annotation -p /home/mdlee4/ref-dbs/kofamscan_db/profiles/ -k /home/mdlee4/ref-dbs/kofamscan_db/ko_list --cpu 10 -f detail-tsv -o ../annotations-and-taxonomy/T1_F2_N-KO-tab.tmp --tmp-dir ../annotations-and-taxonomy/T1_F2_N-tmp-KO-dir --report-unannotated ../predicted-genes/T1_F2_N-genes.faa > logs/T1_F2_N-kofamscan.log 2>&1
+
+        bit-filter-KOFamScan-results -i ../annotations-and-taxonomy/T1_F2_N-KO-tab.tmp -o ../annotations-and-taxonomy/T1_F2_N-annotations.tsv
+
+        rm -rf ../annotations-and-taxonomy/T1_F2_N-KO-tab.tmp ../annotations-and-taxonomy/T1_F2_N-tmp-KO-dir
+        
+[Thu Jul 22 17:16:53 2021]
+Finished job 5.
+1 of 16 steps (6%) done
+Activating conda environment: /home/mdlee4/miniconda3/envs/genelab-utils/envs/ff7b4cbd5d49b8b5ba064af3e62a37af
+Select jobs to execute...
+
+[Thu Jul 22 17:16:54 2021]
+rule run_mapping:
+    input: logs/T1_F1_P-bowtie2-build.log, ../filtered-reads/R1-R1-trimmed.fq.gz, ../filtered-reads/R1-R2-trimmed.fq.gz
+    output: ../read-mapping/R1-T1_F1_P.bam
+    jobid: 4
+    wildcards: ID=R1, group=T1_F1_P
+    resources: tmpdir=/tmp
+
+
+        bowtie2 --mm -q --threads 10 -x ../read-mapping/T1_F1_P-index -1 ../filtered-reads/R1-R1-trimmed.fq.gz -2 ../filtered-reads/R1-R2-trimmed.fq.gz --no-unal 2> logs/R1-T1_F1_P-mapping-info.txt | samtools view -b | samtools sort -@ 10 > ../read-mapping/R1-T1_F1_P.bam 2> /dev/null
+        samtools index -@ 10 ../read-mapping/R1-T1_F1_P.bam
+        
+[Thu Jul 22 17:16:54 2021]
+Finished job 19.
+2 of 16 steps (12%) done
+Activating conda environment: /home/mdlee4/miniconda3/envs/genelab-utils/envs/5a309e94df300f382f6d4207f7f0a57c
+
+[Thu Jul 22 17:16:54 2021]
+rule run_mapping:
+    input: logs/T1_F1_P-bowtie2-build.log, ../filtered-reads/R2-R1-trimmed.fq.gz, ../filtered-reads/R2-R2-trimmed.fq.gz
+    output: ../read-mapping/R2-T1_F1_P.bam
+    jobid: 11
+    wildcards: ID=R2, group=T1_F1_P
+    resources: tmpdir=/tmp
+
+
+        bowtie2 --mm -q --threads 10 -x ../read-mapping/T1_F1_P-index -1 ../filtered-reads/R2-R1-trimmed.fq.gz -2 ../filtered-reads/R2-R2-trimmed.fq.gz --no-unal 2> logs/R2-T1_F1_P-mapping-info.txt | samtools view -b | samtools sort -@ 10 > ../read-mapping/R2-T1_F1_P.bam 2> /dev/null
+        samtools index -@ 10 ../read-mapping/R2-T1_F1_P.bam
+        
+Activating conda environment: /home/mdlee4/miniconda3/envs/genelab-utils/envs/5a309e94df300f382f6d4207f7f0a57c
+Select jobs to execute...
+
+[Thu Jul 22 17:16:56 2021]
+rule run_mapping:
+    input: logs/T1_F2_N-bowtie2-build.log, ../filtered-reads/R5-R1-trimmed.fq.gz, ../filtered-reads/R5-R2-trimmed.fq.gz
+    output: ../read-mapping/R5-T1_F2_N.bam
+    jobid: 18
+    wildcards: ID=R5, group=T1_F2_N
+    resources: tmpdir=/tmp
+
+
+        bowtie2 --mm -q --threads 10 -x ../read-mapping/T1_F2_N-index -1 ../filtered-reads/R5-R1-trimmed.fq.gz -2 ../filtered-reads/R5-R2-trimmed.fq.gz --no-unal 2> logs/R5-T1_F2_N-mapping-info.txt | samtools view -b | samtools sort -@ 10 > ../read-mapping/R5-T1_F2_N.bam 2> /dev/null
+        samtools index -@ 10 ../read-mapping/R5-T1_F2_N.bam
+        
+[Thu Jul 22 17:16:56 2021]
+Finished job 27.
+3 of 16 steps (19%) done
+[Thu Jul 22 17:16:56 2021]
+Finished job 4.
+4 of 16 steps (25%) done
+Activating conda environment: /home/mdlee4/miniconda3/envs/genelab-utils/envs/5a309e94df300f382f6d4207f7f0a57c
+
+[Thu Jul 22 17:16:57 2021]
+rule run_mapping:
+    input: logs/T1_F2_N-bowtie2-build.log, ../filtered-reads/R6-R1-trimmed.fq.gz, ../filtered-reads/R6-R2-trimmed.fq.gz
+    output: ../read-mapping/R6-T1_F2_N.bam
+    jobid: 25
+    wildcards: ID=R6, group=T1_F2_N
+    resources: tmpdir=/tmp
+
+
+        bowtie2 --mm -q --threads 10 -x ../read-mapping/T1_F2_N-index -1 ../filtered-reads/R6-R1-trimmed.fq.gz -2 ../filtered-reads/R6-R2-trimmed.fq.gz --no-unal 2> logs/R6-T1_F2_N-mapping-info.txt | samtools view -b | samtools sort -@ 10 > ../read-mapping/R6-T1_F2_N.bam 2> /dev/null
+        samtools index -@ 10 ../read-mapping/R6-T1_F2_N.bam
+        
+Activating conda environment: /home/mdlee4/miniconda3/envs/genelab-utils/envs/5a309e94df300f382f6d4207f7f0a57c
+Select jobs to execute...
+
+[Thu Jul 22 17:16:58 2021]
+rule get_cov_and_det:
+    input: ../read-mapping/R1-T1_F1_P.bam, ../predicted-genes/T1_F1_P-genes.fa
+    output: ../read-mapping/R1-T1_F1_P-gene-coverages.tsv, ../read-mapping/R1-T1_F1_P-transcript-coverages.tsv
+    log: logs/R1-T1_F1_P-pileup.log
+    jobid: 3
+    wildcards: ID=R1, group=T1_F1_P
+    resources: tmpdir=/tmp
+
+
+        pileup.sh -in ../read-mapping/R1-T1_F1_P.bam fastaorf=../predicted-genes/T1_F1_P-genes.fa outorf=../read-mapping/R1-T1_F1_P-gene-cov-and-det.tmp out=../read-mapping/R1-T1_F1_P-transcript-cov-and-det.tmp > logs/R1-T1_F1_P-pileup.log 2>&1
+
+        # filtering coverages based on detection
+          # genes
+        grep -v "#" ../read-mapping/R1-T1_F1_P-gene-cov-and-det.tmp | awk -F $'	' ' BEGIN {OFS=FS} { if ( $10 <= 0.5 ) $4 = 0 } { print $1,$4 } ' > ../read-mapping/R1-T1_F1_P-gene-cov.tmp
+        cat <( printf "gene_ID	coverage
+" ) ../read-mapping/R1-T1_F1_P-gene-cov.tmp > ../read-mapping/R1-T1_F1_P-gene-coverages.tsv
+
+          # transcripts
+        grep -v "#" ../read-mapping/R1-T1_F1_P-transcript-cov-and-det.tmp | awk -F $'	' ' BEGIN {OFS=FS} { if ( $5 <= 50 ) $2 = 0 } { print $1,$2 } ' > ../read-mapping/R1-T1_F1_P-transcript-cov.tmp
+        cat <( printf "transcript_ID	coverage
+" ) ../read-mapping/R1-T1_F1_P-transcript-cov.tmp > ../read-mapping/R1-T1_F1_P-transcript-coverages.tsv
+
+          # removing intermediate files
+        rm ../read-mapping/R1-T1_F1_P-gene-cov-and-det.tmp ../read-mapping/R1-T1_F1_P-transcript-cov-and-det.tmp ../read-mapping/R1-T1_F1_P-gene-cov.tmp ../read-mapping/R1-T1_F1_P-transcript-cov.tmp
+        
+[Thu Jul 22 17:16:58 2021]
+Finished job 11.
+5 of 16 steps (31%) done
+Activating conda environment: /home/mdlee4/miniconda3/envs/genelab-utils/envs/5a309e94df300f382f6d4207f7f0a57c
+Select jobs to execute...
+
+[Thu Jul 22 17:16:59 2021]
+rule get_cov_and_det:
+    input: ../read-mapping/R2-T1_F1_P.bam, ../predicted-genes/T1_F1_P-genes.fa
+    output: ../read-mapping/R2-T1_F1_P-gene-coverages.tsv, ../read-mapping/R2-T1_F1_P-transcript-coverages.tsv
+    log: logs/R2-T1_F1_P-pileup.log
+    jobid: 10
+    wildcards: ID=R2, group=T1_F1_P
+    resources: tmpdir=/tmp
+
+
+        pileup.sh -in ../read-mapping/R2-T1_F1_P.bam fastaorf=../predicted-genes/T1_F1_P-genes.fa outorf=../read-mapping/R2-T1_F1_P-gene-cov-and-det.tmp out=../read-mapping/R2-T1_F1_P-transcript-cov-and-det.tmp > logs/R2-T1_F1_P-pileup.log 2>&1
+
+        # filtering coverages based on detection
+          # genes
+        grep -v "#" ../read-mapping/R2-T1_F1_P-gene-cov-and-det.tmp | awk -F $'	' ' BEGIN {OFS=FS} { if ( $10 <= 0.5 ) $4 = 0 } { print $1,$4 } ' > ../read-mapping/R2-T1_F1_P-gene-cov.tmp
+        cat <( printf "gene_ID	coverage
+" ) ../read-mapping/R2-T1_F1_P-gene-cov.tmp > ../read-mapping/R2-T1_F1_P-gene-coverages.tsv
+
+          # transcripts
+        grep -v "#" ../read-mapping/R2-T1_F1_P-transcript-cov-and-det.tmp | awk -F $'	' ' BEGIN {OFS=FS} { if ( $5 <= 50 ) $2 = 0 } { print $1,$2 } ' > ../read-mapping/R2-T1_F1_P-transcript-cov.tmp
+        cat <( printf "transcript_ID	coverage
+" ) ../read-mapping/R2-T1_F1_P-transcript-cov.tmp > ../read-mapping/R2-T1_F1_P-transcript-coverages.tsv
+
+          # removing intermediate files
+        rm ../read-mapping/R2-T1_F1_P-gene-cov-and-det.tmp ../read-mapping/R2-T1_F1_P-transcript-cov-and-det.tmp ../read-mapping/R2-T1_F1_P-gene-cov.tmp ../read-mapping/R2-T1_F1_P-transcript-cov.tmp
+        
+Activating conda environment: /home/mdlee4/miniconda3/envs/genelab-utils/envs/5a309e94df300f382f6d4207f7f0a57c
+[Thu Jul 22 17:17:00 2021]
+Finished job 3.
+6 of 16 steps (38%) done
+[Thu Jul 22 17:17:01 2021]
+Finished job 10.
+7 of 16 steps (44%) done
+Select jobs to execute...
+[Thu Jul 22 17:17:01 2021]
+Finished job 18.
+8 of 16 steps (50%) done
+
+[Thu Jul 22 17:17:01 2021]
+rule combine_group_gene_coverage_annots_and_tax:
+    input: ../read-mapping/R1-T1_F1_P-gene-coverages.tsv, ../read-mapping/R2-T1_F1_P-gene-coverages.tsv, ../annotations-and-taxonomy/T1_F1_P-annotations.tsv, ../annotations-and-taxonomy/T1_F1_P-gene-tax.tsv
+    output: ../combined-outputs/T1_F1_P-gene-coverages-annotations-and-tax.tsv, ../combined-outputs/T1_F1_P-CPM-normalized-gene-coverages-annotations-and-tax.tsv
+    jobid: 2
+    wildcards: group=T1_F1_P
+    resources: tmpdir=/tmp
+
+
+        python scripts/combine-gene-level-coverages-annots-and-tax-per-group.py -g T1_F1_P -a ../annotations-and-taxonomy/T1_F1_P-annotations.tsv -t ../annotations-and-taxonomy/T1_F1_P-gene-tax.tsv -o ../combined-outputs/ ../read-mapping/R1-T1_F1_P-gene-coverages.tsv ../read-mapping/R2-T1_F1_P-gene-coverages.tsv
+        
+Select jobs to execute...
+
+[Thu Jul 22 17:17:01 2021]
+rule get_cov_and_det:
+    input: ../read-mapping/R5-T1_F2_N.bam, ../predicted-genes/T1_F2_N-genes.fa
+    output: ../read-mapping/R5-T1_F2_N-gene-coverages.tsv, ../read-mapping/R5-T1_F2_N-transcript-coverages.tsv
+    log: logs/R5-T1_F2_N-pileup.log
+    jobid: 17
+    wildcards: ID=R5, group=T1_F2_N
+    resources: tmpdir=/tmp
+
+
+        pileup.sh -in ../read-mapping/R5-T1_F2_N.bam fastaorf=../predicted-genes/T1_F2_N-genes.fa outorf=../read-mapping/R5-T1_F2_N-gene-cov-and-det.tmp out=../read-mapping/R5-T1_F2_N-transcript-cov-and-det.tmp > logs/R5-T1_F2_N-pileup.log 2>&1
+
+        # filtering coverages based on detection
+          # genes
+        grep -v "#" ../read-mapping/R5-T1_F2_N-gene-cov-and-det.tmp | awk -F $'	' ' BEGIN {OFS=FS} { if ( $10 <= 0.5 ) $4 = 0 } { print $1,$4 } ' > ../read-mapping/R5-T1_F2_N-gene-cov.tmp
+        cat <( printf "gene_ID	coverage
+" ) ../read-mapping/R5-T1_F2_N-gene-cov.tmp > ../read-mapping/R5-T1_F2_N-gene-coverages.tsv
+
+          # transcripts
+        grep -v "#" ../read-mapping/R5-T1_F2_N-transcript-cov-and-det.tmp | awk -F $'	' ' BEGIN {OFS=FS} { if ( $5 <= 50 ) $2 = 0 } { print $1,$2 } ' > ../read-mapping/R5-T1_F2_N-transcript-cov.tmp
+        cat <( printf "transcript_ID	coverage
+" ) ../read-mapping/R5-T1_F2_N-transcript-cov.tmp > ../read-mapping/R5-T1_F2_N-transcript-coverages.tsv
+
+          # removing intermediate files
+        rm ../read-mapping/R5-T1_F2_N-gene-cov-and-det.tmp ../read-mapping/R5-T1_F2_N-transcript-cov-and-det.tmp ../read-mapping/R5-T1_F2_N-gene-cov.tmp ../read-mapping/R5-T1_F2_N-transcript-cov.tmp
+        
+[Thu Jul 22 17:17:02 2021]
+Error in rule combine_group_gene_coverage_annots_and_tax:
+    jobid: 2
+    output: ../combined-outputs/T1_F1_P-gene-coverages-annotations-and-tax.tsv, ../combined-outputs/T1_F1_P-CPM-normalized-gene-coverages-annotations-and-tax.tsv
+    shell:
+        
+        python scripts/combine-gene-level-coverages-annots-and-tax-per-group.py -g T1_F1_P -a ../annotations-and-taxonomy/T1_F1_P-annotations.tsv -t ../annotations-and-taxonomy/T1_F1_P-gene-tax.tsv -o ../combined-outputs/ ../read-mapping/R1-T1_F1_P-gene-coverages.tsv ../read-mapping/R2-T1_F1_P-gene-coverages.tsv
+        
+        (one of the commands exited with non-zero exit code; note that snakemake uses bash strict mode!)
+
+[Thu Jul 22 17:17:02 2021]
+Finished job 25.
+9 of 16 steps (56%) done
+Activating conda environment: /home/mdlee4/miniconda3/envs/genelab-utils/envs/5a309e94df300f382f6d4207f7f0a57c
+[Thu Jul 22 17:17:03 2021]
+Finished job 17.
+10 of 16 steps (62%) done
+[Thu Jul 22 17:18:23 2021]
+Finished job 26.
+11 of 16 steps (69%) done
+Shutting down, this might take some time.
+Exiting because a job execution failed. Look above for error message
+Complete log: /mnt/data/Bebout_lab/N-project-metatranscriptomes/sandbox/workflow/.snakemake/log/2021-07-22T171621.108205.snakemake.log

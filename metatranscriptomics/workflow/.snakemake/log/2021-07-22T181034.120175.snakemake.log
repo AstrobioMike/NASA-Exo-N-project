@@ -1,0 +1,75 @@
+Building DAG of jobs...
+Using shell: /bin/bash
+Provided cores: 8
+Rules claiming more threads will be scaled down.
+Job stats:
+job                                                   count    min threads    max threads
+--------------------------------------------------  -------  -------------  -------------
+all                                                       1              1              1
+combine_all_gene_coverages_collapsed_by_KO_and_tax        1              1              1
+combine_group_gene_coverage_annots_and_tax                2              1              1
+total                                                     4              1              1
+
+Select jobs to execute...
+
+[Thu Jul 22 18:10:36 2021]
+rule combine_group_gene_coverage_annots_and_tax:
+    input: ../read-mapping/R1-T1_F1_P-gene-coverages.tsv, ../read-mapping/R2-T1_F1_P-gene-coverages.tsv, ../annotations-and-taxonomy/T1_F1_P-annotations.tsv, ../annotations-and-taxonomy/T1_F1_P-gene-tax.tsv
+    output: ../combined-outputs/T1_F1_P-gene-coverages-annotations-and-tax.tsv, ../combined-outputs/T1_F1_P-CPM-normalized-gene-coverages-annotations-and-tax.tsv
+    jobid: 2
+    reason: Missing output files: ../combined-outputs/T1_F1_P-gene-coverages-annotations-and-tax.tsv
+    wildcards: group=T1_F1_P
+    resources: tmpdir=/tmp
+
+
+        python scripts/combine-gene-level-coverages-annots-and-tax-per-group.py -g T1_F1_P -a ../annotations-and-taxonomy/T1_F1_P-annotations.tsv -t ../annotations-and-taxonomy/T1_F1_P-gene-tax.tsv -o ../combined-outputs/ ../read-mapping/R1-T1_F1_P-gene-coverages.tsv ../read-mapping/R2-T1_F1_P-gene-coverages.tsv
+        
+Activating conda environment: /home/mdlee4/miniconda3/envs/genelab-utils/envs/b8af504b202e58fa13c94bd3bcce7aaa
+
+[Thu Jul 22 18:10:37 2021]
+rule combine_group_gene_coverage_annots_and_tax:
+    input: ../read-mapping/R5-T1_F2_N-gene-coverages.tsv, ../read-mapping/R6-T1_F2_N-gene-coverages.tsv, ../annotations-and-taxonomy/T1_F2_N-annotations.tsv, ../annotations-and-taxonomy/T1_F2_N-gene-tax.tsv
+    output: ../combined-outputs/T1_F2_N-gene-coverages-annotations-and-tax.tsv, ../combined-outputs/T1_F2_N-CPM-normalized-gene-coverages-annotations-and-tax.tsv
+    jobid: 16
+    reason: Missing output files: ../combined-outputs/T1_F2_N-gene-coverages-annotations-and-tax.tsv
+    wildcards: group=T1_F2_N
+    resources: tmpdir=/tmp
+
+
+        python scripts/combine-gene-level-coverages-annots-and-tax-per-group.py -g T1_F2_N -a ../annotations-and-taxonomy/T1_F2_N-annotations.tsv -t ../annotations-and-taxonomy/T1_F2_N-gene-tax.tsv -o ../combined-outputs/ ../read-mapping/R5-T1_F2_N-gene-coverages.tsv ../read-mapping/R6-T1_F2_N-gene-coverages.tsv
+        
+Activating conda environment: /home/mdlee4/miniconda3/envs/genelab-utils/envs/b8af504b202e58fa13c94bd3bcce7aaa
+[Thu Jul 22 18:10:38 2021]
+Finished job 2.
+1 of 4 steps (25%) done
+[Thu Jul 22 18:10:38 2021]
+Finished job 16.
+2 of 4 steps (50%) done
+Select jobs to execute...
+
+[Thu Jul 22 18:10:38 2021]
+rule combine_all_gene_coverages_collapsed_by_KO_and_tax:
+    input: ../combined-outputs/T1_F1_P-gene-coverages-annotations-and-tax.tsv, ../combined-outputs/T1_F2_N-gene-coverages-annotations-and-tax.tsv
+    output: ../combined-outputs/All-combined-KO-function-coverages.tsv, ../combined-outputs/All-combined-KO-function-CPM-normalized-coverages.tsv, ../combined-outputs/All-combined-taxonomy-coverages.tsv, ../combined-outputs/All-combined-taxonomy-CPM-normalized-coverages.tsv
+    jobid: 1
+    reason: Missing output files: ../combined-outputs/All-combined-KO-function-coverages.tsv; Input files updated by another job: ../combined-outputs/T1_F2_N-gene-coverages-annotations-and-tax.tsv, ../combined-outputs/T1_F1_P-gene-coverages-annotations-and-tax.tsv
+    resources: tmpdir=/tmp
+
+
+        python scripts/combine-all-gene-tables.py -o ../combined-outputs/ ../combined-outputs/T1_F1_P-gene-coverages-annotations-and-tax.tsv ../combined-outputs/T1_F2_N-gene-coverages-annotations-and-tax.tsv
+        
+Activating conda environment: /home/mdlee4/miniconda3/envs/genelab-utils/envs/b8af504b202e58fa13c94bd3bcce7aaa
+[Thu Jul 22 18:10:39 2021]
+Error in rule combine_all_gene_coverages_collapsed_by_KO_and_tax:
+    jobid: 1
+    output: ../combined-outputs/All-combined-KO-function-coverages.tsv, ../combined-outputs/All-combined-KO-function-CPM-normalized-coverages.tsv, ../combined-outputs/All-combined-taxonomy-coverages.tsv, ../combined-outputs/All-combined-taxonomy-CPM-normalized-coverages.tsv
+    conda-env: /home/mdlee4/miniconda3/envs/genelab-utils/envs/b8af504b202e58fa13c94bd3bcce7aaa
+    shell:
+        
+        python scripts/combine-all-gene-tables.py -o ../combined-outputs/ ../combined-outputs/T1_F1_P-gene-coverages-annotations-and-tax.tsv ../combined-outputs/T1_F2_N-gene-coverages-annotations-and-tax.tsv
+        
+        (one of the commands exited with non-zero exit code; note that snakemake uses bash strict mode!)
+
+Shutting down, this might take some time.
+Exiting because a job execution failed. Look above for error message
+Complete log: /mnt/data/Bebout_lab/N-project-metatranscriptomes/sandbox/workflow/.snakemake/log/2021-07-22T181034.120175.snakemake.log

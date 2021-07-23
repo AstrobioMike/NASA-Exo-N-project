@@ -1,0 +1,114 @@
+Building DAG of jobs...
+Using shell: /bin/bash
+Provided cores: 8
+Rules claiming more threads will be scaled down.
+Job stats:
+job                                                   count    min threads    max threads
+--------------------------------------------------  -------  -------------  -------------
+all                                                       1              1              1
+assembly                                                  2              1              1
+build_bowtie2_index                                       2              1              1
+call_genes                                                2              1              1
+combine_all_gene_coverages_collapsed_by_KO_and_tax        1              1              1
+combine_group_gene_coverage_annots_and_tax                2              1              1
+get_cov_and_det                                           4              1              1
+run_KO_annotation                                         2              1              1
+run_mapping                                               4              1              1
+run_tax_classification                                    2              1              1
+summarize_assemblies                                      1              1              1
+total                                                    23              1              1
+
+Select jobs to execute...
+
+[Thu Jul 22 16:54:17 2021]
+rule assembly:
+    input: ../filtered-reads/R5-R1-trimmed.fq.gz, ../filtered-reads/R6-R1-trimmed.fq.gz, ../filtered-reads/R5-R2-trimmed.fq.gz, ../filtered-reads/R6-R2-trimmed.fq.gz
+    output: ../assemblies/T1_F2_N-coassembly.fa
+    log: logs/T1_F2_N-trinity.log
+    jobid: 20
+    wildcards: group=T1_F2_N
+    resources: tmpdir=/tmp
+
+
+        R1_reads=$(echo ../filtered-reads/R5-R1-trimmed.fq.gz ../filtered-reads/R6-R1-trimmed.fq.gz | tr " " ",")
+        R2_reads=$(echo ../filtered-reads/R5-R2-trimmed.fq.gz ../filtered-reads/R6-R2-trimmed.fq.gz | tr " " ",")
+
+        Trinity --seqType fq --max_memory 100G --left ${R1_reads} --right ${R2_reads} --CPU 10 --min_contig_length 500 --output ../assemblies/T1_F2_N-trinity-out --full_cleanup > logs/T1_F2_N-trinity.log 2>&1
+
+        bit-rename-fasta-headers -i ../assemblies/T1_F2_N-trinity-out.Trinity.fasta -w c_T1_F2_N -o ../assemblies/T1_F2_N-coassembly.fa
+        rm ../assemblies/T1_F2_N-trinity-out.Trinity.fasta.gene_trans_map ../assemblies/T1_F2_N-trinity-out.Trinity.fasta
+        
+Activating conda environment: /home/mdlee4/miniconda3/envs/genelab-utils/envs/55b3023014ce81aba08bd54223dca6ad
+
+[Thu Jul 22 16:54:18 2021]
+rule assembly:
+    input: ../filtered-reads/R1-R1-trimmed.fq.gz, ../filtered-reads/R2-R1-trimmed.fq.gz, ../filtered-reads/R1-R2-trimmed.fq.gz, ../filtered-reads/R2-R2-trimmed.fq.gz
+    output: ../assemblies/T1_F1_P-coassembly.fa
+    log: logs/T1_F1_P-trinity.log
+    jobid: 6
+    wildcards: group=T1_F1_P
+    resources: tmpdir=/tmp
+
+
+        R1_reads=$(echo ../filtered-reads/R1-R1-trimmed.fq.gz ../filtered-reads/R2-R1-trimmed.fq.gz | tr " " ",")
+        R2_reads=$(echo ../filtered-reads/R1-R2-trimmed.fq.gz ../filtered-reads/R2-R2-trimmed.fq.gz | tr " " ",")
+
+        Trinity --seqType fq --max_memory 100G --left ${R1_reads} --right ${R2_reads} --CPU 10 --min_contig_length 500 --output ../assemblies/T1_F1_P-trinity-out --full_cleanup > logs/T1_F1_P-trinity.log 2>&1
+
+        bit-rename-fasta-headers -i ../assemblies/T1_F1_P-trinity-out.Trinity.fasta -w c_T1_F1_P -o ../assemblies/T1_F1_P-coassembly.fa
+        rm ../assemblies/T1_F1_P-trinity-out.Trinity.fasta.gene_trans_map ../assemblies/T1_F1_P-trinity-out.Trinity.fasta
+        
+Activating conda environment: /home/mdlee4/miniconda3/envs/genelab-utils/envs/55b3023014ce81aba08bd54223dca6ad
+[Thu Jul 22 16:58:31 2021]
+Finished job 6.
+1 of 23 steps (4%) done
+Select jobs to execute...
+
+[Thu Jul 22 16:58:31 2021]
+rule call_genes:
+    input: ../assemblies/T1_F1_P-coassembly.fa
+    output: ../predicted-genes/T1_F1_P-genes.faa, ../predicted-genes/T1_F1_P-genes.fa, ../predicted-genes/T1_F1_P-genes.gff
+    log: logs/T1_F1_P-prodigal.log
+    jobid: 9
+    wildcards: group=T1_F1_P
+    resources: tmpdir=/tmp
+
+
+        prodigal -q -c -p meta -a ../predicted-genes/T1_F1_P-genes.faa -d ../predicted-genes/T1_F1_P-genes.fa -f gff -o ../predicted-genes/T1_F1_P-genes.gff -i ../assemblies/T1_F1_P-coassembly.fa > logs/T1_F1_P-prodigal.log 2>&1
+        
+Activating conda environment: /home/mdlee4/miniconda3/envs/genelab-utils/envs/5d290149bb727cbc7896081b3ff6958b
+
+[Thu Jul 22 16:58:31 2021]
+rule build_bowtie2_index:
+    input: ../assemblies/T1_F1_P-coassembly.fa
+    output: ../read-mapping/T1_F1_P-bowtie2-build.log
+    jobid: 5
+    wildcards: group=T1_F1_P
+    resources: tmpdir=/tmp
+
+
+        bowtie2-build ../assemblies/T1_F1_P-coassembly.fa ../read-mapping/T1_F1_P-index > ../read-mapping/T1_F1_P-bowtie2-build.log 2>&1
+        
+Activating conda environment: /home/mdlee4/miniconda3/envs/genelab-utils/envs/52543450f096f8558adcc4839245c837
+[Thu Jul 22 16:58:32 2021]
+Error in rule build_bowtie2_index:
+    jobid: 5
+    output: ../read-mapping/T1_F1_P-bowtie2-build.log
+    conda-env: /home/mdlee4/miniconda3/envs/genelab-utils/envs/52543450f096f8558adcc4839245c837
+    shell:
+        
+        bowtie2-build ../assemblies/T1_F1_P-coassembly.fa ../read-mapping/T1_F1_P-index > ../read-mapping/T1_F1_P-bowtie2-build.log 2>&1
+        
+        (one of the commands exited with non-zero exit code; note that snakemake uses bash strict mode!)
+
+Removing output files of failed job build_bowtie2_index since they might be corrupted:
+../read-mapping/T1_F1_P-bowtie2-build.log
+[Thu Jul 22 16:58:33 2021]
+Finished job 9.
+2 of 23 steps (9%) done
+[Thu Jul 22 17:00:09 2021]
+Finished job 20.
+3 of 23 steps (13%) done
+Shutting down, this might take some time.
+Exiting because a job execution failed. Look above for error message
+Complete log: /mnt/data/Bebout_lab/N-project-metatranscriptomes/sandbox/workflow/.snakemake/log/2021-07-22T165415.095762.snakemake.log

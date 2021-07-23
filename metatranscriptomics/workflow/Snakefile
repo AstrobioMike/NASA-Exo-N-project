@@ -36,15 +36,9 @@ group_ID_list = pd.unique(sample_and_group_info["group"]).tolist()
 
 dirs_to_create = [config["fastqc_out_dir"], config["filtered_reads_dir"], config["assemblies_dir"], 
                  config["genes_dir"], config["annotations_and_tax_dir"], config["mapping_dir"], 
-                 config["combined_output_dir"], config["bins_dir"], config["MAGs_dir"], config["logs_dir"]]
+                 config["combined_output_dir"], config["logs_dir"]]
 
 for dir in dirs_to_create:
-    try:
-        os.mkdir(dir)
-    except:
-        pass
-
-for dir in expand(config["bins_dir"] + "{group}", group = group_ID_list):
     try:
         os.mkdir(dir)
     except:
@@ -96,184 +90,15 @@ for group in group_ID_list:
 rule all:
     input:
         config["combined_output_dir"] + "All-combined-KO-function-coverages.tsv",
-        config["MAGs_dir"] + "gtdbtk-out",
-        config["MAGs_dir"] + "MAGs-overview.tsv",
         config["assemblies_dir"] + "assembly-summaries.tsv",
         config["fastqc_out_dir"] + "raw_multiqc_data.zip",
         config["fastqc_out_dir"] + "filtered_multiqc_data.zip"
 
 
-rule generate_MAGs_overview_table:
-    input:
-        assembly_summaries = config["MAGs_dir"] + "MAG-assembly-summaries.tsv",
-        checkm_results = expand(config["MAGs_dir"] + "{group}-MAGs-checkm-out.tsv", group = group_ID_list),
-        gtdb_done_trigger = config["MAGs_dir"] + "gtdbtk-out"
-    params:
-        gtdb_results = config["MAGs_dir"] + "gtdbtk-out/gtdbtk.*.summary.tsv",
-        checkm_tmp = config["MAGs_dir"] + "checkm-estimates.tmp",
-        gtdb_tmp = config["MAGs_dir"] + "gtdb-taxonomies.tmp",
-        checkm_w_header_tmp = config["MAGs_dir"] + "checkm-estimates-with-headers.tmp",
-        gtdb_w_header_tmp = config["MAGs_dir"] + "gtdb-taxonomies-with-headers.tmp",
-        overview_tmp = config["MAGs_dir"] + "MAGs-overview.tmp",
-        overview_header_tmp = config["MAGs_dir"] + "MAGs-overview-header.tmp",
-        overview_sorted_tmp = config["MAGs_dir"] + "MAGs-overview-sorted.tmp"
-    output:
-        config["MAGs_dir"] + "MAGs-overview.tsv"
-    shell:
-        """
-        # making sure none of the intermediate files exist already
-        rm -rf {params.checkm_tmp} {params.gtdb_tmp} {params.checkm_w_header_tmp} {params.gtdb_w_header_tmp} {params.overview_tmp} {params.overview_header_tmp} {params.overview_sorted_tmp}
-
-        for MAG in $(cut -f 1 {input.assembly_summaries} | tail -n +2)
-        do
-
-            grep -w -m 1 "^${{MAG}}" {input.checkm_results} | cut -f 12,13 >> {params.checkm_tmp}
-
-            # note: below won't work with darwin sed due to tab character
-            grep -w "^${{MAG}}" {params.gtdb_results} | cut -f 2 | sed 's/^.__//' | sed 's/;.__/\\t/g' | awk -F $'\\t' ' BEGIN {{ OFS=FS }} {{ for (i=1; i<=NF; i++) if ( $i ~/^ *$/) $i = "NA" }}; 1 ' >> {params.gtdb_tmp}
-
-        done
-
-        # adding headers
-        cat <(printf "est. completeness\\test. redundancy\\n") {params.checkm_tmp} > {params.checkm_w_header_tmp}
-        cat <(printf "domain\\tphylum\\tclass\\torder\\tfamily\\tgenus\\tspecies\\n") {params.gtdb_tmp} > {params.gtdb_w_header_tmp}
-
-        paste {input.assembly_summaries} {params.checkm_w_header_tmp} {params.gtdb_w_header_tmp} > {params.overview_tmp}
-
-        # ordering by taxonomy
-        head -n 1 {params.overview_tmp} > {params.overview_header_tmp}
-        tail -n +2 {params.overview_tmp} | sort -t $'\\t' -k 13,19 > {params.overview_sorted_tmp}
-
-        cat {params.overview_header_tmp} {params.overview_sorted_tmp} > {output}
-
-        rm -rf {params.checkm_tmp} {params.gtdb_tmp} {params.checkm_w_header_tmp} {params.gtdb_w_header_tmp} {params.overview_tmp} {params.overview_header_tmp} {params.overview_sorted_tmp}
-        """
-
-
-rule summarize_MAG_assemblies:
-   """ summarize MAG assemblies """
-
-    conda:
-        "envs/bit.yaml"
-    input:
-        trigger = expand(config["MAGs_dir"] + "{group}-MAGs-checkm-out.tsv", group = group_ID_list)
-    params:
-        intermediate_file = config["MAGs_dir"] + "MAGs-summaries.tmp",
-        MAGs_dir = config["MAGs_dir"]
-    output:
-        config["MAGs_dir"] + "MAG-assembly-summaries.tsv"
-    shell:
-        """
-        bit-summarize-assembly {params.MAGs_dir}*/*.fa -o {params.intermediate_file} -t
-
-        # slimming down the output
-        cut -f 1,2,3,5,6,8,11,18,19,20 {params.intermediate_file} > {output}
-        rm {params.intermediate_file}
-        """
-
-
-rule run_gtdbtk_on_MAGs:
-    """ assign taxonomy to MAGs with gtdb-tk """
-
-    conda:
-        "envs/gtdb-tk.yaml"
-    input:
-        trigger = expand(config["MAGs_dir"] + "{group}-MAGs-checkm-out.tsv", group = group_ID_list),
-        gtdbtk_db_trigger = config["REF_DB_ROOT_DIR"] + config["GTDB_DATA_PATH"] + "/" + config["GTDB_TRIGGER_FILE"]
-    params:
-        temp_all_MAGs_dir = config["MAGs_dir"] + "all-for-gtdb/",
-        MAGs_dir = config["MAGs_dir"],
-        gtdb_tk_num_cpus = config["gtdb_tk_num_cpus"]
-    output:
-        directory(config["MAGs_dir"] + "gtdbtk-out")
-    log:
-        config["logs_dir"] + "gtdbtk-run.log"
-    shell:
-        """
-        mkdir -p {params.temp_all_MAGs_dir}
-
-        cp {params.MAGs_dir}*/*.fa {params.temp_all_MAGs_dir}
-
-        gtdbtk classify_wf --genome_dir {params.temp_all_MAGs_dir} -x fa --out_dir {output} --cpus {params.gtdb_tk_num_cpus} > {log} 2>&1
-
-        rm -rf {params.temp_all_MAGs_dir}
-        """
-
-
-rule filtering_checkm_results_and_copying_MAGs:
-    input:
-        config["bins_dir"] + "{group}-bins-checkm-out.tsv"
-    output:
-        config["MAGs_dir"] + "{group}-MAGs-checkm-out.tsv"
-    params:
-        bins_dir = config["bins_dir"],
-        MAGs_dir = config["MAGs_dir"]
-    shell:
-        """
-        mkdir -p {params.MAGs_dir}{wildcards.group}/
-
-        cat <( head -n 1 {input} ) <( awk -F $'\\t' ' $12 >= 90 && $13 <= 10 && $14 == 0 ' {input} ) > {wildcards.group}-MAG-info.tmp
-
-        sed 's/bin./{wildcards.group}-MAG-/' {wildcards.group}-MAG-info.tmp > {output}
-
-        for MAG in $(cut -f 1 {wildcards.group}-MAG-info.tmp | tail -n +2)
-        do
-            new_ID=$(echo $MAG | sed 's/bin./MAG-/')
-            cp {params.bins_dir}{wildcards.group}/${{MAG}}.fa {params.MAGs_dir}{wildcards.group}/{wildcards.group}-${{new_ID}}.fa
-        done
-
-        rm {wildcards.group}-MAG-info.tmp
-        """
-
-
-rule run_checkm_on_bins:
-    """ runs checkm on recovered bins """
-
-    conda:
-        "envs/checkm.yaml"
-    input:
-        curr_bins_dir = config["bins_dir"] + "{group}/",
-        trigger = config["mapping_dir"] + "{group}-metabat-assembly-depth.tsv",
-        checkm_db_trigger = config["REF_DB_ROOT_DIR"] + config["CHECKM_DIR"] + "/" + config["CHECKM_TRIGGER_FILE"]
-    params:
-        tmp_dir = config["bins_dir"] + "{group}/checkm-out-tmp/",
-        num_threads = config["num_threads"],
-        num_cpus = config["num_cpus"]
-    output:
-        config["bins_dir"] + "{group}-bins-checkm-out.tsv"
-    log:
-        config["logs_dir"] + "{group}-checkm.log"
-    shell:
-        """
-        checkm lineage_wf -f {output} --tab_table -t {params.num_cpus} --pplacer_threads {params.num_threads} -x fa {input.curr_bins_dir} {params.tmp_dir} > {log} 2>&1
-        rm -rf {params.tmp_dir}
-        """
-
-
-rule metabat_binning:
-    """
-    This rule runs metabat2 for binning contigs in each of the groups
-    """
-
-    conda:
-        "envs/metabat.yaml"
-    input:
-        assembly = config["assemblies_dir"] + "{group}-coassembly.fa",
-        bams = lambda wildcards: group_bam_dict[wildcards.group]
-    params:
-        prefix = config["bins_dir"] + "{group}",
-        num_threads = config["num_threads"]
-    output:
-        depth_file = config["mapping_dir"] + "{group}-metabat-assembly-depth.tsv"
-    log:
-        config["logs_dir"] + "{group}-bam-summarize-and-metabat.log"
-    shell:
-        """
-        jgi_summarize_bam_contig_depths --outputDepth {output.depth_file} --percentIdentity 97 --minContigLength 1000 --minContigDepth 1.0  --referenceFasta {input.assembly} {input.bams} > {log} 2>&1
-        metabat2  --inFile {input.assembly} --outFile {params.prefix}/bin --abdFile {output.depth_file} -t {params.num_threads} > {log} 2>&1
-        """
 
 rule combine_all_gene_coverages_collapsed_by_KO_and_tax:
+    conda:
+        "envs/bit.yaml"
     input:
         expand(config["combined_output_dir"] + "{group}-gene-coverages-annotations-and-tax.tsv", group = group_ID_list)
     output:
@@ -289,6 +114,8 @@ rule combine_all_gene_coverages_collapsed_by_KO_and_tax:
         """
 
 rule combine_group_gene_coverage_annots_and_tax:
+    conda:
+        "envs/bit.yaml"
     input:
         coverage_files = lambda wildcards: group_cov_dict[wildcards.group],
         ko_tab = config["annotations_and_tax_dir"] + "{group}-annotations.tsv",
@@ -306,8 +133,8 @@ rule combine_group_gene_coverage_annots_and_tax:
 
 rule get_cov_and_det:
     """
-    This rule pulls out coverage and detection information for each sample, gene-level and contig-level,
-    and filters the gene-level coverage information based on requiring at least 50% detection.
+    This rule pulls out coverage and detection information for each sample, gene-level and transcript-level,
+    and filters the coverage information based on requiring at least 50% detection.
     """
 
     conda:
@@ -317,26 +144,26 @@ rule get_cov_and_det:
         nt = config["genes_dir"] + "{group}-genes.fa"
     params:
         gene_cov_and_det_tmp = config["mapping_dir"] + "{ID}-{group}-gene-cov-and-det.tmp",
-        contig_cov_and_det_tmp = config["mapping_dir"] + "{ID}-{group}-contig-cov-and-det.tmp",
+        transcript_cov_and_det_tmp = config["mapping_dir"] + "{ID}-{group}-transcript-cov-and-det.tmp",
         gene_cov_tmp = config["mapping_dir"] + "{ID}-{group}-gene-cov.tmp",
-        contig_cov_tmp = config["mapping_dir"] + "{ID}-{group}-contig-cov.tmp"
+        transcript_cov_tmp = config["mapping_dir"] + "{ID}-{group}-transcript-cov.tmp"
     output:
         gene_covs = config["mapping_dir"] + "{ID}-{group}-gene-coverages.tsv",
-        contig_covs = config["mapping_dir"] + "{ID}-{group}-contig-coverages.tsv"
+        transcript_covs = config["mapping_dir"] + "{ID}-{group}-transcript-coverages.tsv"
     log:
         config["logs_dir"] + "{ID}-{group}-pileup.log"
     shell:
         """
-        pileup.sh -in {input.bam} fastaorf={input.nt} outorf={params.gene_cov_and_det_tmp} out={params.contig_cov_and_det_tmp} > {log} 2>&1
+        pileup.sh -in {input.bam} fastaorf={input.nt} outorf={params.gene_cov_and_det_tmp} out={params.transcript_cov_and_det_tmp} > {log} 2>&1
 
         # filtering coverages based on detection
           # genes
         grep -v "#" {params.gene_cov_and_det_tmp} | awk -F $'\t' ' BEGIN {{OFS=FS}} {{ if ( $10 <= 0.5 ) $4 = 0 }} {{ print $1,$4 }} ' > {params.gene_cov_tmp}
         cat <( printf "gene_ID\tcoverage\n" ) {params.gene_cov_tmp} > {output.gene_covs}
 
-          # contigs
-        grep -v "#" {params.contig_cov_and_det_tmp} | awk -F $'\t' ' BEGIN {{OFS=FS}} {{ if ( $5 <= 50 ) $2 = 0 }} {{ print $1,$2 }} ' > {params.contig_cov_tmp}
-        cat <( printf "contig_ID\tcoverage\n" ) {params.contig_cov_tmp} > {output.contig_covs}
+          # transcripts
+        grep -v "#" {params.transcript_cov_and_det_tmp} | awk -F $'\t' ' BEGIN {{OFS=FS}} {{ if ( $5 <= 50 ) $2 = 0 }} {{ print $1,$2 }} ' > {params.transcript_cov_tmp}
+        cat <( printf "transcript_ID\tcoverage\n" ) {params.transcript_cov_tmp} > {output.transcript_covs}
 
           # removing intermediate files
         rm {params}
@@ -351,12 +178,12 @@ rule run_mapping:
     conda:
         "envs/mapping.yaml"
     input:
-        mapping_trigger = config["mapping_dir"] + "{group}-bowtie2-build.log",
+        mapping_trigger = config["logs_dir"] + "{group}-bowtie2-build.log",
         R1 = config["filtered_reads_dir"] + "{ID}" + config["trimmed_R1_suffix"],
         R2 = config["filtered_reads_dir"] + "{ID}" + config["trimmed_R2_suffix"]
     params:
         index = config["mapping_dir"] + "{group}-index",
-        mapping_info = config["mapping_dir"] + "{ID}-{group}-mapping-info.txt",
+        mapping_info = config["logs_dir"] + "{ID}-{group}-mapping-info.txt",
         num_threads = config["num_threads"]
     output:
         config["mapping_dir"] + "{ID}-{group}.bam"
@@ -377,7 +204,7 @@ rule build_bowtie2_index:
     params:
         basename = config["mapping_dir"] + "{group}-index"
     output:
-        mapping_trigger = config["mapping_dir"] + "{group}-bowtie2-build.log"
+        mapping_trigger = config["logs_dir"] + "{group}-bowtie2-build.log"
     shell:
         """
         bowtie2-build {input} {params.basename} > {output.mapping_trigger} 2>&1
@@ -386,7 +213,7 @@ rule build_bowtie2_index:
 
 rule run_tax_classification:
     """
-    This rule runs the gene- and contig-level taxonomic classifications for each coassembly.
+    This rule runs the gene- and transcript-level taxonomic classifications for each coassembly.
     """
 
     conda:
@@ -397,11 +224,11 @@ rule run_tax_classification:
         cat_db_trigger = config["REF_DB_ROOT_DIR"] + config["CAT_DIR"] + "/" + config["CAT_TRIGGER_FILE"]
     output:
         gene_tax_out = config["annotations_and_tax_dir"] + "{group}-gene-tax.tsv",
-        contig_tax_out = config["annotations_and_tax_dir"] + "{group}-contig-tax.tsv"
+        transcript_tax_out = config["annotations_and_tax_dir"] + "{group}-transcript-tax.tsv"
     params:
         tmp_out_prefix = config["annotations_and_tax_dir"] + "{group}-tax-out.tmp",
         tmp_genes = config["annotations_and_tax_dir"] + "{group}-gene-tax.tmp",
-        tmp_contigs = config["annotations_and_tax_dir"] + "{group}-contig-tax.tmp",
+        tmp_transcripts = config["annotations_and_tax_dir"] + "{group}-transcript-tax.tmp",
         cat_db = config["REF_DB_ROOT_DIR"] + config["CAT_DIR"] + config["CAT_DB"],
         cat_tax = config["REF_DB_ROOT_DIR"] + config["CAT_DIR"] + config["CAT_TAX"],
         num_cpus = config["num_cpus"]
@@ -422,16 +249,16 @@ rule run_tax_classification:
         sed 's/\*//g' > {output.gene_tax_out}
 
         # adding names to contig classifications
-        CAT add_names -i {params.tmp_out_prefix}.contig2classification.txt -o {params.tmp_contigs} -t {params.cat_tax} --only_official > {log} 2>&1
+        CAT add_names -i {params.tmp_out_prefix}.contig2classification.txt -o {params.tmp_transcripts} -t {params.cat_tax} --only_official > {log} 2>&1
 
         # formatting contig classifications
         awk -F $'\t' ' BEGIN {{ OFS=FS }} {{ if ( $2 == "classification" ) {{ print $1,$4,$6,$7,$8,$9,$10,$11,$12 }} \
         else if ( $2 == "unclassified" ) {{ print $1,"NA","NA","NA","NA","NA","NA","NA","NA" }} \
-        else {{ n=split($4,lineage,";"); print $1,lineage[n],$6,$7,$8,$9,$10,$11,$12 }} }} ' {params.tmp_contigs} | \
+        else {{ n=split($4,lineage,";"); print $1,lineage[n],$6,$7,$8,$9,$10,$11,$12 }} }} ' {params.tmp_transcripts} | \
         sed 's/not classified/NA/g' | sed 's/superkingdom/domain/' | sed 's/: [0-9\.]*//g' | sed 's/^# contig/contig_ID/' | \
-        sed 's/lineage/taxid/' | sed 's/\*//g' > {output.contig_tax_out}
+        sed 's/lineage/taxid/' | sed 's/\*//g' > {output.transcript_tax_out}
 
-        rm -rf {params.tmp_out_prefix} {params.tmp_genes} {params.tmp_contigs}
+        rm -rf {params.tmp_out_prefix} {params.tmp_genes} {params.tmp_transcripts}
         """
 
 
@@ -508,31 +335,28 @@ rule assembly:
     """
 
     conda:
-        "envs/megahit.yaml"
+        "envs/trinity.yaml"
     input:
         R1_reads = lambda wildcards: R1_group_dict[wildcards.group],
         R2_reads = lambda wildcards: R2_group_dict[wildcards.group]
     output:
         config["assemblies_dir"] + "{group}-coassembly.fa"
     params:
+        tmp_out_dir = config["assemblies_dir"] + "{group}-trinity-out",
         assemblies_dir = config["assemblies_dir"],
         num_threads = config["num_threads"],
         max_mem = config["max_mem"]
     log:
-        config["logs_dir"] + "{group}-megahit.log"
+        config["logs_dir"] + "{group}-trinity.log"
     shell:
         """
-        # removing output directory if exists already but rule still needs to be run (because there is no --force option to megahit i dont't think):
-        rm -rf {params.assemblies_dir}{wildcards.group}-megahit-out/
-
         R1_reads=$(echo {input.R1_reads} | tr " " ",")
         R2_reads=$(echo {input.R2_reads} | tr " " ",")
 
-        megahit -1 ${{R1_reads}} -2 ${{R2_reads}} -m {params.max_mem} -t {params.num_threads} --min-contig-len 500 -o {params.assemblies_dir}{wildcards.group}-megahit-out > {log} 2>&1
-        bit-rename-fasta-headers -i {params.assemblies_dir}{wildcards.group}-megahit-out/final.contigs.fa -w c_{wildcards.group} -o {output}
+        Trinity --seqType fq --max_memory {params.max_mem} --left ${{R1_reads}} --right ${{R2_reads}} --CPU {params.num_threads} --min_contig_length 500 --output {params.tmp_out_dir} --full_cleanup > {log} 2>&1
 
-        # getting rid of assembly directory to save space
-        rm -rf {params.assemblies_dir}{wildcards.group}-megahit-out/
+        bit-rename-fasta-headers -i {params.tmp_out_dir}.Trinity.fasta -w c_{wildcards.group} -o {output}
+        rm {params.tmp_out_dir}.Trinity.fasta.gene_trans_map {params.tmp_out_dir}.Trinity.fasta
         """
 
 

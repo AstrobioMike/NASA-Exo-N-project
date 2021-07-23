@@ -1,0 +1,128 @@
+############################################################
+##################### VARIABLES TO SET #####################
+#############################################################
+
+#############################################################
+##### These first 6 need to match what is on our system #####
+#############################################################
+
+## path to 2-column, tab-delimited file specifying samples and the groups they belong to, e.g.:
+        # Sample-1  Group_1
+        # Sample-2  Group_1
+        # Sample-3  Group_2
+        # Sample-4  Group_2
+
+sample_info_file:
+    "sample-and-group-info.tsv"
+
+## raw read suffixes (region following the unique part of the sample names)
+  # e.g. for Sample-1-R1.fq.gz and Sample-1-R2.fq.gz
+
+raw_R1_suffix:
+    "_R1.fq.gz"
+raw_R2_suffix:
+    "_R2.fq.gz"
+
+## raw fastqc suffixes
+  # e.g. with above, fastqc will remove the ".fq.gz" and append "_fastqc.zip" in its place)
+
+raw_R1_fastqc_suffix:
+    "_R1_fastqc.zip"
+raw_R2_fastqc_suffix:
+    "_R2_fastqc.zip"
+
+## raw reads directory (can be relative to workflow directory, or needs to be full path)
+raw_reads_dir:
+    "../sub-reads/"
+
+######################################################################
+##### The rest only need to be altered if we want to change them #####
+######################################################################
+
+## number of threads to use PER snakemake job (which is set with the -j parameter passed to snakemake call)
+    # passed to trinity, bowtie2, samtools
+num_threads:
+    10
+
+## number of CPUs to use PER snakemake job
+    # passed to KOFamScan, CAT
+num_cpus:
+    10
+
+## maximum memory allowed passed to trinity
+    # e.g. '10G' 
+max_mem:
+    100G
+
+## quality trimmed/filtered suffixes
+trimmed_R1_suffix:
+    "-R1-trimmed.fq.gz"
+trimmed_R2_suffix:
+    "-R2-trimmed.fq.gz"
+
+trimmed_R1_fastqc_suffix:
+    "-R1-trimmed_fastqc.zip"
+trimmed_R2_fastqc_suffix:
+    "-R2-trimmed_fastqc.zip"
+
+## output directories (all relative to processing directory, will be created)
+fastqc_out_dir:
+    "../fastqc-outputs/"
+filtered_reads_dir:
+    "../filtered-reads/"
+assemblies_dir:
+    "../assemblies/"
+genes_dir:
+    "../predicted-genes/"
+annotations_and_tax_dir:
+    "../annotations-and-taxonomy/"
+mapping_dir:
+    "../read-mapping/"
+combined_output_dir:
+    "../combined-outputs/"
+logs_dir:
+    "logs/"
+
+
+#############################
+#### REFERENCE DATABASES ####
+#############################
+### Note on reference databases ###
+# The workflow will check the locations pointed to below and install the databases
+# if they are not already there. It looks for the below filenames in the directory
+# for each database, which it creates when it sets them up initially. If we want to
+# point to DBs that already exist on our setup, rather than setting up new ones, we
+# need to add these files to their respective directories. They should be empty, the
+# workflow just checks the file is there, to know it doesn't need to setup the DB.
+#
+# All together, after installed and unpacked, these will take up about 260 GB. But will 
+# require up to 500 GB during installation and initial un-packing. 
+
+## root directory of databases (or where they will be downloaded if they don't exist yet)
+    # the root should be the full path or relative path, the ~/ home shortcut is not expanded
+    # by snakemake's evaluation of files, so don't use that
+REF_DB_ROOT_DIR:
+    "/home/mdlee4/ref-dbs/"
+
+## specific database locations
+KOFAMSCAN_DIR:
+    "kofamscan_db"
+KOFAMSCAN_TRIGGER_FILE:
+    "KO_DB_SETUP"
+CAT_DIR:
+    "CAT_prepare_20210107"
+CAT_TRIGGER_FILE:
+    "CAT_DB_SETUP"
+CAT_DB:
+    "/2021-01-07_CAT_database"
+CAT_TAX:
+    "/2021-01-07_taxonomy"
+CHECKM_DIR:
+    "checkm-db"
+CHECKM_TRIGGER_FILE:
+    "CHECKM_DB_SETUP"
+GTDB_DATA_PATH:
+    "GTDB-tk-ref-db"
+GTDB_TRIGGER_FILE:
+    "GTDBTK_DB_SETUP"
+

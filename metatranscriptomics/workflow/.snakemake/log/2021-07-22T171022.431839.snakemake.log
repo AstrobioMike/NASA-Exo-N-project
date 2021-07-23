@@ -1,0 +1,4 @@
+Building DAG of jobs...
+MissingInputException in line 169 of /mnt/data/Bebout_lab/N-project-metatranscriptomes/sandbox/workflow/Snakefile:
+Missing input files for rule run_mapping:
+../read-mapping/T1_F1_P-bowtie2-build.log

@@ -1,0 +1,159 @@
+Building DAG of jobs...
+Using shell: /bin/bash
+Provided cores: 8
+Rules claiming more threads will be scaled down.
+Job stats:
+job                                                   count    min threads    max threads
+--------------------------------------------------  -------  -------------  -------------
+all                                                       1              1              1
+build_bowtie2_index                                       2              1              1
+call_genes                                                1              1              1
+combine_all_gene_coverages_collapsed_by_KO_and_tax        1              1              1
+combine_group_gene_coverage_annots_and_tax                2              1              1
+get_cov_and_det                                           4              1              1
+run_KO_annotation                                         2              1              1
+run_mapping                                               4              1              1
+run_tax_classification                                    2              1              1
+summarize_assemblies                                      1              1              1
+total                                                    20              1              1
+
+Select jobs to execute...
+
+[Thu Jul 22 17:11:01 2021]
+rule call_genes:
+    input: ../assemblies/T1_F2_N-coassembly.fa
+    output: ../predicted-genes/T1_F2_N-genes.faa, ../predicted-genes/T1_F2_N-genes.fa, ../predicted-genes/T1_F2_N-genes.gff
+    log: logs/T1_F2_N-prodigal.log
+    jobid: 23
+    wildcards: group=T1_F2_N
+    resources: tmpdir=/tmp
+
+
+        prodigal -q -c -p meta -a ../predicted-genes/T1_F2_N-genes.faa -d ../predicted-genes/T1_F2_N-genes.fa -f gff -o ../predicted-genes/T1_F2_N-genes.gff -i ../assemblies/T1_F2_N-coassembly.fa > logs/T1_F2_N-prodigal.log 2>&1
+        
+Activating conda environment: /home/mdlee4/miniconda3/envs/genelab-utils/envs/5d290149bb727cbc7896081b3ff6958b
+
+[Thu Jul 22 17:11:02 2021]
+rule build_bowtie2_index:
+    input: ../assemblies/T1_F1_P-coassembly.fa
+    output: logs/T1_F1_P-bowtie2-build.log
+    jobid: 5
+    wildcards: group=T1_F1_P
+    resources: tmpdir=/tmp
+
+
+        bowtie2-build ../assemblies/T1_F1_P-coassembly.fa ../read-mapping/T1_F1_P-index > logs/T1_F1_P-bowtie2-build.log 2>&1
+        
+Activating conda environment: /home/mdlee4/miniconda3/envs/genelab-utils/envs/52543450f096f8558adcc4839245c837
+
+[Thu Jul 22 17:11:03 2021]
+rule run_KO_annotation:
+    input: ../predicted-genes/T1_F1_P-genes.faa, /home/mdlee4/ref-dbs/kofamscan_db/KO_DB_SETUP
+    output: ../annotations-and-taxonomy/T1_F1_P-annotations.tsv
+    log: logs/T1_F1_P-kofamscan.log
+    jobid: 12
+    wildcards: group=T1_F1_P
+    resources: tmpdir=/tmp
+
+
+        exec_annotation -p /home/mdlee4/ref-dbs/kofamscan_db/profiles/ -k /home/mdlee4/ref-dbs/kofamscan_db/ko_list --cpu 10 -f detail-tsv -o ../annotations-and-taxonomy/T1_F1_P-KO-tab.tmp --tmp-dir ../annotations-and-taxonomy/T1_F1_P-tmp-KO-dir --report-unannotated ../predicted-genes/T1_F1_P-genes.faa > logs/T1_F1_P-kofamscan.log 2>&1
+
+        bit-filter-KOFamScan-results -i ../annotations-and-taxonomy/T1_F1_P-KO-tab.tmp -o ../annotations-and-taxonomy/T1_F1_P-annotations.tsv
+
+        rm -rf ../annotations-and-taxonomy/T1_F1_P-KO-tab.tmp ../annotations-and-taxonomy/T1_F1_P-tmp-KO-dir
+        
+[Thu Jul 22 17:11:03 2021]
+Error in rule build_bowtie2_index:
+    jobid: 5
+    output: logs/T1_F1_P-bowtie2-build.log
+    conda-env: /home/mdlee4/miniconda3/envs/genelab-utils/envs/52543450f096f8558adcc4839245c837
+    shell:
+        
+        bowtie2-build ../assemblies/T1_F1_P-coassembly.fa ../read-mapping/T1_F1_P-index > logs/T1_F1_P-bowtie2-build.log 2>&1
+        
+        (one of the commands exited with non-zero exit code; note that snakemake uses bash strict mode!)
+
+Removing output files of failed job build_bowtie2_index since they might be corrupted:
+logs/T1_F1_P-bowtie2-build.log
+Activating conda environment: /home/mdlee4/miniconda3/envs/genelab-utils/envs/ff7b4cbd5d49b8b5ba064af3e62a37af
+
+[Thu Jul 22 17:11:03 2021]
+rule run_tax_classification:
+    input: ../assemblies/T1_F1_P-coassembly.fa, ../predicted-genes/T1_F1_P-genes.faa, /home/mdlee4/ref-dbs/CAT_prepare_20201123/CAT_DB_SETUP
+    output: ../annotations-and-taxonomy/T1_F1_P-gene-tax.tsv, ../annotations-and-taxonomy/T1_F1_P-transcript-tax.tsv
+    log: logs/T1_F1_P-CAT.log
+    jobid: 14
+    wildcards: group=T1_F1_P
+    resources: tmpdir=/tmp
+
+
+        CAT contigs -d /home/mdlee4/ref-dbs/CAT_prepare_20201123/2020-11-23_CAT_database -t /home/mdlee4/ref-dbs/CAT_prepare_20201123/2020-11-23_taxonomy -n 10 -r 3 --top 4 --I_know_what_Im_doing -c ../assemblies/T1_F1_P-coassembly.fa -p ../predicted-genes/T1_F1_P-genes.faa -o ../annotations-and-taxonomy/T1_F1_P-tax-out.tmp --force > logs/T1_F1_P-CAT.log 2>&1
+
+        # adding names to gene classifications
+        CAT add_names -i ../annotations-and-taxonomy/T1_F1_P-tax-out.tmp.ORF2LCA.txt -o ../annotations-and-taxonomy/T1_F1_P-gene-tax.tmp -t /home/mdlee4/ref-dbs/CAT_prepare_20201123/2020-11-23_taxonomy --only_official > logs/T1_F1_P-CAT.log 2>&1
+
+        # formatting gene classifications
+        awk -F $'	' ' BEGIN { OFS=FS } { if ( $2 == "lineage" ) { print $1,$2,$4,$5,$6,$7,$8,$9,$10 }         else if ( $2 == "ORF has no hit to database" || $2 ~ /^no taxid found/ ) { print $1,"NA","NA","NA","NA","NA","NA","NA","NA" }         else { n=split($2,lineage,";"); print $1,lineage[n],$4,$5,$6,$7,$8,$9,$10 } } ' ../annotations-and-taxonomy/T1_F1_P-gene-tax.tmp |         sed 's/not classified/NA/g' | sed 's/superkingdom/domain/' | sed 's/^# ORF/gene_ID/' | sed 's/lineage/taxid/' |         sed 's/\*//g' > ../annotations-and-taxonomy/T1_F1_P-gene-tax.tsv
+
+        # adding names to contig classifications
+        CAT add_names -i ../annotations-and-taxonomy/T1_F1_P-tax-out.tmp.contig2classification.txt -o ../annotations-and-taxonomy/T1_F1_P-transcript-tax.tmp -t /home/mdlee4/ref-dbs/CAT_prepare_20201123/2020-11-23_taxonomy --only_official > logs/T1_F1_P-CAT.log 2>&1
+
+        # formatting contig classifications
+        awk -F $'	' ' BEGIN { OFS=FS } { if ( $2 == "classification" ) { print $1,$4,$6,$7,$8,$9,$10,$11,$12 }         else if ( $2 == "unclassified" ) { print $1,"NA","NA","NA","NA","NA","NA","NA","NA" }         else { n=split($4,lineage,";"); print $1,lineage[n],$6,$7,$8,$9,$10,$11,$12 } } ' ../annotations-and-taxonomy/T1_F1_P-transcript-tax.tmp |         sed 's/not classified/NA/g' | sed 's/superkingdom/domain/' | sed 's/: [0-9\.]*//g' | sed 's/^# contig/contig_ID/' |         sed 's/lineage/taxid/' | sed 's/\*//g' > ../annotations-and-taxonomy/T1_F1_P-transcript-tax.tsv
+
+        rm -rf ../annotations-and-taxonomy/T1_F1_P-tax-out.tmp ../annotations-and-taxonomy/T1_F1_P-gene-tax.tmp ../annotations-and-taxonomy/T1_F1_P-transcript-tax.tmp
+        
+Activating conda environment: /home/mdlee4/miniconda3/envs/genelab-utils/envs/14691dd32061cca186a5c0190ff0e259
+
+[Thu Jul 22 17:11:04 2021]
+rule summarize_assemblies:
+    input: ../assemblies/T1_F1_P-coassembly.fa, ../assemblies/T1_F2_N-coassembly.fa
+    output: ../assemblies/assembly-summaries.tsv
+    jobid: 28
+    resources: tmpdir=/tmp
+
+
+        bit-summarize-assembly -o ../assemblies/assembly-summaries.tsv ../assemblies/T1_F1_P-coassembly.fa ../assemblies/T1_F2_N-coassembly.fa
+        
+[Thu Jul 22 17:11:04 2021]
+Finished job 14.
+1 of 20 steps (5%) done
+Activating conda environment: /home/mdlee4/miniconda3/envs/genelab-utils/envs/b8af504b202e58fa13c94bd3bcce7aaa
+
+[Thu Jul 22 17:11:04 2021]
+rule build_bowtie2_index:
+    input: ../assemblies/T1_F2_N-coassembly.fa
+    output: logs/T1_F2_N-bowtie2-build.log
+    jobid: 19
+    wildcards: group=T1_F2_N
+    resources: tmpdir=/tmp
+
+
+        bowtie2-build ../assemblies/T1_F2_N-coassembly.fa ../read-mapping/T1_F2_N-index > logs/T1_F2_N-bowtie2-build.log 2>&1
+        
+[Thu Jul 22 17:11:05 2021]
+Finished job 28.
+2 of 20 steps (10%) done
+Activating conda environment: /home/mdlee4/miniconda3/envs/genelab-utils/envs/52543450f096f8558adcc4839245c837
+[Thu Jul 22 17:11:05 2021]
+Error in rule build_bowtie2_index:
+    jobid: 19
+    output: logs/T1_F2_N-bowtie2-build.log
+    conda-env: /home/mdlee4/miniconda3/envs/genelab-utils/envs/52543450f096f8558adcc4839245c837
+    shell:
+        
+        bowtie2-build ../assemblies/T1_F2_N-coassembly.fa ../read-mapping/T1_F2_N-index > logs/T1_F2_N-bowtie2-build.log 2>&1
+        
+        (one of the commands exited with non-zero exit code; note that snakemake uses bash strict mode!)
+
+Removing output files of failed job build_bowtie2_index since they might be corrupted:
+logs/T1_F2_N-bowtie2-build.log
+[Thu Jul 22 17:11:06 2021]
+Finished job 23.
+3 of 20 steps (15%) done
+[Thu Jul 22 17:12:20 2021]
+Finished job 12.
+4 of 20 steps (20%) done
+Shutting down, this might take some time.
+Exiting because a job execution failed. Look above for error message
+Complete log: /mnt/data/Bebout_lab/N-project-metatranscriptomes/sandbox/workflow/.snakemake/log/2021-07-22T171059.163906.snakemake.log
