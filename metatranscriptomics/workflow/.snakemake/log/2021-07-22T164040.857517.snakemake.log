@@ -1,3 +1,0 @@
-KeyError in line 47 of /mnt/data/Bebout_lab/N-project-metatranscriptomes/sandbox/workflow/Snakefile:
-'bins_dir'
-  File "/mnt/data/Bebout_lab/N-project-metatranscriptomes/sandbox/workflow/Snakefile", line 47, in <module>

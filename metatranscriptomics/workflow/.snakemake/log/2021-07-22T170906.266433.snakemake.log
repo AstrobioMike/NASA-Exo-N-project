@@ -1,3 +1,0 @@
-SyntaxError:
-Not all output, log and benchmark files of rule run_mapping contain the same wildcards. This is crucial though, in order to avoid that two or more jobs write to the same file.
-  File "/mnt/data/Bebout_lab/N-project-metatranscriptomes/sandbox/workflow/Snakefile", line 189, in <module>
