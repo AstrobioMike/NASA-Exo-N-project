@@ -4,17 +4,14 @@
 > **Currently under development**
 ---
 
-## Overview
+The [workflow directory](workflow) holds the primary [Snakefile](workflow/Snakefile) and all associated files for our metagenomics processing. See the [config.yaml](workflow/config.yaml) file for variables that need to be set and an example input file specifying the samples and groups for co-assembly and analysis.
+
 
 ---
 
 <p align="center">
 <a href="../images/Metagenomics-processing-overview.png"><img src="../images/Metagenomics-processing-overview.png"></a>
 </p>
-
---- 
-
-The [workflow directory](workflow) holds the primary [Snakefile](workflow/Snakefile) and all associated files for our metagenomics processing. See the [config.yaml](workflow/config.yaml) file for variables that need to be set and an example input file specifying the samples and groups for co-assembly and analysis.
 
 --- 
 
