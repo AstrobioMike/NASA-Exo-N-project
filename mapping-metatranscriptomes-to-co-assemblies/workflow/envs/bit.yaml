@@ -1,0 +1,8 @@
+channels:
+    - conda-forge
+    - bioconda
+    - defaults
+    - astrobiomike
+dependencies:
+    - bit=1.8.57
+    - pandas=1.1.3

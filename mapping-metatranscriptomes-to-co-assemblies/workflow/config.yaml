@@ -1,0 +1,78 @@
+############################################################
+##################### VARIABLES TO SET #####################
+#############################################################
+
+#############################################################
+##### These first 6 need to match what is on our system #####
+#############################################################
+
+## path to 2-column, tab-delimited file specifying samples and the groups they belong to, e.g.:
+        # Sample-1  Group_1
+        # Sample-2  Group_1
+        # Sample-3  Group_2
+        # Sample-4  Group_2
+
+sample_info_file:
+    "sample-and-group-info.tsv"
+
+## raw read suffixes (region following the unique part of the sample names)
+  # e.g. for Sample-1-R1.fq.gz and Sample-1-R2.fq.gz
+
+raw_R1_suffix:
+    "_R1.fq.gz"
+raw_R2_suffix:
+    "_R2.fq.gz"
+
+## raw fastqc suffixes
+  # e.g. with above, fastqc will remove the ".fq.gz" and append "_fastqc.zip" in its place)
+
+raw_R1_fastqc_suffix:
+    "_R1_fastqc.zip"
+raw_R2_fastqc_suffix:
+    "_R2_fastqc.zip"
+
+## raw reads directory (can be relative to workflow directory, or needs to be full path)
+raw_reads_dir:
+    "../../N-project-metatranscriptomes/raw-reads/"
+#    "test-reads/"
+
+######################################################################
+##### The rest only need to be altered if we want to change them #####
+######################################################################
+
+## number of threads to use PER snakemake job (which is set with the -j parameter passed to snakemake call)
+    # passed to bowtie2, samtools
+num_threads:
+    5
+
+## quality trimmed/filtered suffixes
+trimmed_R1_suffix:
+    "-R1-trimmed.fq.gz"
+trimmed_R2_suffix:
+    "-R2-trimmed.fq.gz"
+
+trimmed_R1_fastqc_suffix:
+    "-R1-trimmed_fastqc.zip"
+trimmed_R2_fastqc_suffix:
+    "-R2-trimmed_fastqc.zip"
+
+## output and used directories (all relative to processing directory, will be created if needed)
+fastqc_out_dir:
+    "../fastqc-outputs/"
+filtered_reads_dir:
+    "../../N-project-metatranscriptomes/filtered-reads/"
+#     "test-filtered-reads/"
+assemblies_dir:
+    "../../N-project-metagenomes/processing/assemblies/"
+genes_dir:
+    "../../N-project-metagenomes/processing/predicted-genes/"
+annotations_and_tax_dir:
+    "../../N-project-metagenomes/processing/annotations-and-taxonomy/"
+bowtie2_indices_dir:
+    "../../N-project-metagenomes/processing/read-mapping/"
+mapping_dir:
+    "../read-mapping/"
+combined_output_dir:
+    "../combined-outputs/"
+logs_dir:
+    "logs/"
