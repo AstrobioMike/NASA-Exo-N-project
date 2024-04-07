@@ -1,0 +1,11 @@
+KO_ID	KO_name	KO_def	group1	group2	p.adj	log2fc(group2/group1)		Also sig in Control	Also sig in P
+K00371	"narH, narY, nxrB"	"nitrate reductase / nitrite oxidoreductase, beta subunit"	T1	T2	0.0394	-1.63		No	No
+K00371	"narH, narY, nxrB"	"nitrate reductase / nitrite oxidoreductase, beta subunit"	T1	T3	0.00595	-3.27		No	No
+K00459	"ncd2, npd"	nitronate monooxygenase	T2	T3	0.0243	1.37		No	No
+K02305	norC	nitric oxide reductase subunit C	T1	T3	0.031	2.08		No	No
+K02568	napB	"nitrate reductase (cytochrome), electron transfer subunit"	T1	T3	0.00152	-3.45		No	No
+K02575	"NRT, narK, nrtP, nasA"	"MFS transporter, NNP family, nitrate/nitrite transporter"	T1	T3	0.0442	1.94		No	No
+K02586	nifD	nitrogenase molybdenum-iron protein alpha chain	T1	T3	0.0471	1.41		No	No
+K02588	nifH	nitrogenase iron protein NifH	T2	T3	0.0453	0.99		No	No
+K02591	nifK	nitrogenase molybdenum-iron protein beta chain	T1	T3	0.0426	1.4		No	No
+K20933	K20933	hydrazine synthase subunit	T2	T3	0.0309	-0.88		No	No
